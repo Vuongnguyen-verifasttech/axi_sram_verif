@@ -1,5 +1,5 @@
 # =============================================================================
-# Filelist cho AXI4 SRAM UVM (QuestaSim 10.6b)
+# Filelist cho AXI4 SRAM UVM (QuestaSim 10.6b) - Đã sửa
 # =============================================================================
 
 # RTL DUT
@@ -13,9 +13,13 @@
 +incdir+../tb/include
 +incdir+../tb/interface
 
-# Package (chỉ compile package này, các file khác được include bên trong)
+# Package (chỉ class)
 ../tb/include/axi4_pkg.sv
 
-# Interface và Top
+# Interface (compile riêng, KHÔNG nằm trong package)
 ../tb/interface/axi4_if.sv
+
+../tb/dut_wrapper.sv
+
+# Top module
 ../tb/top/tb_top.sv
