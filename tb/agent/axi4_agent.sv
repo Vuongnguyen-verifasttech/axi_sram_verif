@@ -9,47 +9,51 @@
 //                 - Connects all sub-components correctly
 //
 // Version       : 1.0
-// Date          : 1-June-2026
+// Date          : 29-May-2026
 //==============================================================================
+
 class axi4_agent extends uvm_agent;
-    `uvm_component_utils(axi4_agent)
 
-axi4_monitor monitor;
-axi4_driver driver; 
-axi4_sequencer sequencer;
+  `uvm_component_utils(axi4_agent)
 
-// Analysis port cho SB/COV
-uvm_analysis_port #(axi4_transaction) analysis_port;
+  // Sub-components
+  axi4_sequencer  sequencer;
+  axi4_driver     driver;
+  axi4_monitor    monitor;
 
-// =====================================================================
-// Constructor
-// =====================================================================
-function new(string name ="axi4_agent", uvm_component parent = null);
+  // Analysis port expose ra ngoài (cho Scoreboard/Coverage)
+  uvm_analysis_port #(axi4_transaction) analysis_port;
+
+  // =====================================================================
+  // Constructor
+  // =====================================================================
+  function new(string name = "axi4_agent", uvm_component parent = null);
     super.new(name, parent);
-endfunction 
+  endfunction
 
-// =====================================================================
-// Build Phase: Tạo các sub-component
-// =====================================================================
-
-virtual function void build_phase (uvm_phase phase)
+  // =====================================================================
+  // Build Phase: Tạo các sub-component
+  // =====================================================================
+  virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
 
-    // Create Monitor
-    monitor=axi4_monitor::type_id::create("monitor",this);
+    // Tạo monitor (luôn tạo, dù active hay passive)
+    monitor = axi4_monitor::type_id::create("monitor", this);
+
     if (get_is_active() == UVM_ACTIVE) begin
       sequencer = axi4_sequencer::type_id::create("sequencer", this);
       driver    = axi4_driver::type_id::create("driver", this);
     end
 
     analysis_port = new("analysis_port", this);
-endfunction
-// =====================================================================
-// Connect Phase: Connect port
-// =====================================================================
+  endfunction
 
-virtual function void connect_phase (uvm_phase phase);
+  // =====================================================================
+  // Connect Phase: Nối các port
+  // =====================================================================
+  virtual function void connect_phase(uvm_phase phase);
     super.connect_phase(phase);
+
     if (get_is_active() == UVM_ACTIVE) begin
       // Kết nối Driver với Sequencer
       driver.seq_item_port.connect(sequencer.seq_item_export);
@@ -59,4 +63,4 @@ virtual function void connect_phase (uvm_phase phase);
     monitor.ap.connect(analysis_port);
   endfunction
 
-endclass : axi4_agent 
+endclass : axi4_agent
