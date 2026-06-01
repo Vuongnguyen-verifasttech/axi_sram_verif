@@ -16,7 +16,7 @@ class axi4_driver extends uvm_driver #(axi4_transaction);
   `uvm_component_utils(axi4_driver)
 
   // Virtual interface kết nối với Modport Driver
-  virtual axi4_if.driver vif;
+  virtual axi4_if vif;
 
   // =====================================================================
   // Constructor
