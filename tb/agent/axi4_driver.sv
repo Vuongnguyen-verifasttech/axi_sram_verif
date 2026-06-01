@@ -3,12 +3,10 @@
 // Author        : [vnguyen-kafka]
 // Company       : [Verifast]
 // Project       : AXI4 SRAM Verification Environment
-// Description   : AXI4 Interface Definition (fixed modport driver)
-//                 - Parameterizable AXI4 signals
-//                 - Clocking blocks to avoid race conditions
-//                 - Modport driver now includes ALL signals needed by DUT
+// Description   : AXI4 Interface with complete modport 'driver'
+//                 - Fixed modport to include ALL signals needed by DUT
 //
-// Version       : 1.2 (Fixed modport)
+// Version       : 1.3 (Fixed modport driver)
 // Date          : 29-May-2026
 //==============================================================================
 
@@ -64,7 +62,7 @@ interface axi4_if #(
   clocking cb_driver @(posedge i_clk);
     default input #1step output #0;
 
-    // Master outputs
+    // Master (testbench) outputs
     output awvalid, awaddr, awlen, awburst, awid;
     output wvalid, wdata, wlast;
     output arvalid, araddr, arlen, arburst, arid;
