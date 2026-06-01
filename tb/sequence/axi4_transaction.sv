@@ -21,7 +21,7 @@ class axi4_transaction extends uvm_sequence_item;
     typedef enum bit [1:0] {
         AXI_BURST_FIXED = 2'b00; 
         AXI_BURST_INCR = 2'b01;
-        AXI_BURST_WRAP = 2'b10;
+        AXI_BURST_WRAP = 2'b10
     } axi_burst_e;
 
 // =====================================================================
@@ -31,8 +31,8 @@ class axi4_transaction extends uvm_sequence_item;
    rand bit [31:0] axaddr; 
    rand bit [7:0] axlen; // 0-255 beats
    rand axi_burst_e axburst;
-   rand bit is_write; // 1 = write; 0 = read
-   rand bit [31:0] data[$]; // conly use for write case 
+   rand bit s_write; // 1 = write; 0 = read
+   rand bit [31:0] data[$]; // conly use for write case i
 
    rand bit [3:0] axid; 
 
