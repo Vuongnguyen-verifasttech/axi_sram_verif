@@ -3,7 +3,7 @@
 // Author        : [vnguyen-kafka]
 // Company       : [Verifast]
 // Project       : AXI4 SRAM Verification Environment
-// Description   : Main UVM Package
+// Description   : Main UVM Package - Chỉ include các class
 //
 // Version       : 1.0
 // Date          : 29-May-2026
@@ -17,7 +17,7 @@ package axi4_pkg;
   import uvm_pkg::*;
   `include "uvm_macros.svh"
 
-  // Include theo đường dẫn tương đối từ tb/include/
+  // Chỉ include các class (không include interface hay module)
   `include "../sequence/axi4_transaction.sv"
   `include "../sequence/axi4_base_seq.sv"
   `include "../sequence/axi4_write_seq.sv"
