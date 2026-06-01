@@ -3,11 +3,9 @@
 // Author        : [vnguyen-kafka]
 // Company       : [Verifast]
 // Project       : AXI4 SRAM Verification Environment
-// Description   : UVM Environment
-//                 - Creates AXI4 Agent
-//                 - Passes virtual interface to Agent via config_db
+// Description   : UVM Environment - Chỉ tạo Agent và để tb_top truyền vif
 //
-// Version       : 1.1 (Fixed vif passing)
+// Version       : 1.2 (Fixed vif error)
 // Date          : 29-May-2026
 //==============================================================================
 
@@ -27,15 +25,12 @@ class axi4_env extends uvm_env;
     // Tạo Agent
     agent = axi4_agent::type_id::create("agent", this);
 
-    // Truyền virtual interface xuống Agent (và xuống driver/monitor)
-    if (!uvm_config_db#(virtual axi4_if.driver)::set(this, "agent*", "vif", vif)) begin
-      `uvm_fatal(get_type_name(), "Failed to set virtual interface to agent!")
-    end
+    // KHÔNG set vif ở đây nữa (tb_top đã set rồi)
   endfunction
 
   virtual function void connect_phase(uvm_phase phase);
     super.connect_phase(phase);
-    // Sau này sẽ connect analysis_port của agent sang scoreboard
+    // Sau này nối scoreboard ở đây
   endfunction
 
 endclass : axi4_env
