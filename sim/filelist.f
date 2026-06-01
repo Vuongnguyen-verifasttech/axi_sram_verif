@@ -1,5 +1,5 @@
 # =============================================================================
-# Filelist cho AXI4 SRAM UVM (QuestaSim 10.6b) - FIXED
+# Filelist AXI4 UVM - QuestaSim 10.6b (FINAL FIXED)
 # =============================================================================
 
 # RTL DUT
@@ -12,10 +12,10 @@
 # Interface
 ../tb/interface/axi4_if.sv
 
-# Package (rất đơn giản)
+# Package
 ../tb/include/axi4_pkg.sv
 
-# TB classes (compile trực tiếp, không qua package include)
+# TB Classes (compile trực tiếp)
 ../tb/sequence/axi4_transaction.sv
 ../tb/sequence/axi4_base_seq.sv
 ../tb/sequence/axi4_write_seq.sv
@@ -29,6 +29,6 @@
 ../tb/scoreboard/axi4_scoreboard.sv
 ../tb/test/base_test.sv
 
-# Top + Wrapper
+# Wrapper + Top
 ../tb/dut_wrapper.sv
 ../tb/top/tb_top.sv
