@@ -1,125 +1,95 @@
 //==============================================================================
-// File          : axi4_driver.sv
+// File          : axi4_if.sv
 // Author        : [vnguyen-kafka]
 // Company       : [Verifast]
 // Project       : AXI4 SRAM Verification Environment
-// Description   : AXI4 Master Driver
-//                 - Drive all 5 AXI channels (AW, W, B, AR, R)
-//                 - Use clocking block cb_driver to avoid race condition
-//                 - Provide task-based API: write_burst(), read_burst()
-//                 - Support random wait states and back-pressure handling
+// Description   : AXI4 Interface Definition (fixed modport driver)
+//                 - Parameterizable AXI4 signals
+//                 - Clocking blocks to avoid race conditions
+//                 - Modport driver now includes ALL signals needed by DUT
 //
-// Version       : 1.0
+// Version       : 1.2 (Fixed modport)
 // Date          : 29-May-2026
 //==============================================================================
 
-class axi4_driver extends uvm_driver #(axi4_transaction);
+`timescale 1ns/1ps 
 
-  `uvm_component_utils(axi4_driver)
+interface axi4_if #(
+    parameter PARA_DATA_WD = 32, 
+    parameter PARA_ADDR_WD = 32, 
+    parameter PARA_ID_WD   = 4,
+    parameter PARA_LEN_WD  = 8
+) (
+    input logic i_clk,
+    input logic i_rst_n
+); 
 
-  // Virtual interface để drive signals
-  virtual axi4_if.driver vif;
+  // ============================================================================
+  // AXI4 Signals
+  // ============================================================================
+  logic [PARA_ADDR_WD-1:0] awaddr;
+  logic                    awvalid;
+  logic                    awready;
+  logic [             1:0] awburst;
+  logic [ PARA_LEN_WD-1:0] awlen;
+  logic [  PARA_ID_WD-1:0] awid;
 
-  // =====================================================================
-  // Constructor
-  // =====================================================================
-  function new(string name = "axi4_driver", uvm_component parent = null);
-    super.new(name, parent);
-  endfunction
+  logic [PARA_DATA_WD-1:0] wdata;
+  logic                    wvalid;
+  logic                    wready;
+  logic                    wlast;
 
-  // =====================================================================
-  // Build Phase: Lấy virtual interface từ config_db
-  // =====================================================================
-  virtual function void build_phase(uvm_phase phase);
-    super.build_phase(phase);
-    if (!uvm_config_db#(virtual axi4_if.driver)::get(this, "", "vif", vif)) begin
-      `uvm_fatal(get_type_name(), "Virtual interface (vif) not found in config_db!")
-    end
-  endfunction
+  logic [PARA_ID_WD-1:0] bid;
+  logic [           1:0] bresp;
+  logic                  bvalid;
+  logic                  bready;
 
-  // =====================================================================
-  // Run Phase: Main driver loop
-  // =====================================================================
-  virtual task run_phase(uvm_phase phase);
-    reset_driver();
-    forever begin
-      axi4_transaction req;                    
-      seq_item_port.get_next_item(req);
+  logic [PARA_ADDR_WD-1:0] araddr;
+  logic                    arvalid;
+  logic                    arready;
+  logic [             1:0] arburst;
+  logic [ PARA_LEN_WD-1:0] arlen;
+  logic [  PARA_ID_WD-1:0] arid;
 
-      `uvm_info(get_type_name(), $sformatf("Driving: %s", req.convert2string()), UVM_MEDIUM)
+  logic [  PARA_ID_WD-1:0] rid;
+  logic [PARA_DATA_WD-1:0] rdata;
+  logic [             1:0] rresp;
+  logic                    rvalid;
+  logic                    rlast;
+  logic                    rready;
 
-      drive_item(req);
-      seq_item_port.item_done();
-    end
-  endtask
+  // ============================================================================
+  // Clocking Blocks
+  // ============================================================================
+  clocking cb_driver @(posedge i_clk);
+    default input #1step output #0;
 
-  // =====================================================================
-  // Reset task
-  // =====================================================================
-  virtual task reset_driver();
-    vif.cb_driver.awvalid <= 1'b0;
-    vif.cb_driver.wvalid  <= 1'b0;
-    vif.cb_driver.arvalid <= 1'b0;
-    vif.cb_driver.bready  <= 1'b1;   // Master luôn ready nhận response
-    vif.cb_driver.rready  <= 1'b1;   // Master luôn ready nhận data
-  endtask
+    // Master outputs
+    output awvalid, awaddr, awlen, awburst, awid;
+    output wvalid, wdata, wlast;
+    output arvalid, araddr, arlen, arburst, arid;
+    output bready, rready;
 
-  // =====================================================================
-  // Drive task
-  // =====================================================================
-  virtual task drive_item(axi4_transaction tr);
-    if (tr.is_write)
-      drive_write_burst(tr);
-    else
-      drive_read_burst(tr);
-  endtask
+    // Master inputs
+    input  awready, wready;
+    input  bid, bresp, bvalid;
+    input  arready;
+    input  rid, rdata, rresp, rvalid, rlast;
+  endclocking : cb_driver 
 
-  // =====================================================================
-  // Drive Write Burst
-  // =====================================================================
-  virtual task drive_write_burst(axi4_transaction tr);
-    int num_beats = tr.axlen + 1;
+  clocking cb_monitor @(posedge i_clk);
+    default input #1step;
+    input awvalid, awaddr, awready, awlen, awburst, awid;
+    input wvalid, wdata, wready, wlast;
+    input bid, bresp, bvalid, bready;
+    input arvalid, araddr, arready, arlen, arburst, arid;
+    input rid, rdata, rresp, rvalid, rlast, rready;
+  endclocking : cb_monitor 
 
-    // 1. Drive AW Channel
-    vif.cb_driver.awvalid <= 1'b1;
-    vif.cb_driver.awaddr  <= tr.axaddr;
-    vif.cb_driver.awlen   <= tr.axlen;
-    vif.cb_driver.awburst <= tr.axburst;
-    vif.cb_driver.awid    <= tr.axid;
+  // ============================================================================
+  // Modports
+  // ============================================================================
+  modport driver  (clocking cb_driver,  input i_rst_n);
+  modport monitor (clocking cb_monitor, input i_rst_n);
 
-    wait(vif.cb_driver.awready);
-    @(vif.cb_driver);
-    vif.cb_driver.awvalid <= 1'b0;
-
-    // 2. Drive W Channel (từng beat)
-    foreach (tr.data[i]) begin
-      vif.cb_driver.wvalid <= 1'b1;
-      vif.cb_driver.wdata  <= tr.data[i];
-      vif.cb_driver.wlast  <= (i == num_beats - 1);
-
-      wait(vif.cb_driver.wready);
-      @(vif.cb_driver);
-      vif.cb_driver.wvalid <= 1'b0;
-    end
-  endtask
-
-  // =====================================================================
-  // Drive Read Burst
-  // =====================================================================
-  virtual task drive_read_burst(axi4_transaction tr);
-    vif.cb_driver.arvalid <= 1'b1;
-    vif.cb_driver.araddr  <= tr.axaddr;
-    vif.cb_driver.arlen   <= tr.axlen;
-    vif.cb_driver.arburst <= tr.axburst;
-    vif.cb_driver.arid    <= tr.axid;
-
-    wait(vif.cb_driver.arready);
-    @(vif.cb_driver);
-    vif.cb_driver.arvalid <= 1'b0;
-  endtask
-
-endclass : axi4_driver
-
-
-
-
+endinterface : axi4_if
