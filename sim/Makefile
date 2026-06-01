@@ -1,5 +1,5 @@
 # =============================================================================
-# Makefile cho AXI4 SRAM UVM Verification (QuestaSim)
+# Makefile cho AXI4 SRAM UVM Verification (QuestaSim 10.6b)
 # =============================================================================
 
 TOP_MODULE   = tb_top
@@ -22,6 +22,7 @@ init:
 
 compile:
 	vlog -work work -sv -mfcu -timescale 1ns/1ps +acc \
+		+UVM \
 		$(COV_COMPILE) \
 		-f $(FILELIST) \
 		-l compile.log
@@ -34,7 +35,7 @@ sim:
 		-do "run -all; coverage save $(TEST_NAME).ucdb -onexit; quit -f" \
 		-l sim.log
 
-# Regression với nhiều seed
+# Regression
 run_regression:
 	@echo "=== Running Regression with $(NUM_SEEDS) seeds ==="
 	@mkdir -p regression_logs $(COV_MERGE_DIR)
@@ -55,7 +56,7 @@ merge_coverage:
 		vcover merge -out $(COV_MERGE_DIR)/merged.ucdb $(COV_MERGE_DIR)/*.ucdb; \
 		echo "Merge completed!"; \
 	else \
-		echo "ERROR: No .ucdb files found! Run regression first."; \
+		echo "ERROR: No .ucdb files found!"; \
 	fi
 
 report:
@@ -63,14 +64,13 @@ report:
 	@mkdir -p $(COV_REPORT)
 	vcover report -details -html -htmldir $(COV_REPORT) $(COV_MERGE_DIR)/merged.ucdb
 	vcover report -details $(COV_MERGE_DIR)/merged.ucdb > $(COV_REPORT)/summary.txt
-	@echo "✅ Report generated at: ./$(COV_REPORT)/index.html"
+	@echo "✅ Report: ./$(COV_REPORT)/index.html"
 
 clean:
 	rm -rf work transcript vsim.wlf modelsim.ini *.log *.vcd *.fsdb \
 	       regression_logs $(COV_MERGE_DIR) $(COV_REPORT) *.ucdb
 	@echo "=== Clean completed! ==="
 
-# Quick commands
 run: clean init compile sim
 debug: clean init compile gui
 
