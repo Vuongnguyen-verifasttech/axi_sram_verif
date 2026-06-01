@@ -1,74 +1,80 @@
-# =============================================
-# Makefile cho AXI UVM Verification (QuestaSim 10.6b)
-# =============================================
+# =============================================================================
+# Makefile cho AXI4 SRAM UVM Verification (QuestaSim)
+# =============================================================================
 
 TOP_MODULE   = tb_top
-FILELIST     = run.f
+FILELIST     = filelist.f
 
-# Coverage (nếu sau này cần)
+# Coverage Settings
 COV_COMPILE  = -cover bcesf
 COV_SIM      = -coverage
+COV_MERGE_DIR= cov_merge
+COV_REPORT   = coverage_report
 
-# =============================================
-# Main Targets
-# =============================================
+NUM_SEEDS    ?= 3
+TEST_NAME    ?= base_test
 
-all: clean compile run
+all: clean init compile run_regression merge_coverage report
 
-# Khởi tạo library
 init:
 	vlib work
 	vmap work work
 
-# Compile
 compile:
-	vlog -work work -sv -mfcu -timescale=1ns/1ps +acc \
-		+incdir+../axi_lib/include \
-		+incdir+../axi_lib/src \
-		+incdir+../tb \
+	vlog -work work -sv -mfcu -timescale 1ns/1ps +acc \
 		$(COV_COMPILE) \
-		-f $(FILELIST)
+		-f $(FILELIST) \
+		-l compile.log
 
-# Simulation console (không wave)
+# Single simulation
 sim:
-	vsim -c -suppress 3009 \
+	vsim -c $(COV_SIM) \
 		$(TOP_MODULE) \
-		-do "run -all; quit -f"
+		+UVM_TESTNAME=$(TEST_NAME) \
+		-do "run -all; coverage save $(TEST_NAME).ucdb -onexit; quit -f" \
+		-l sim.log
 
-# Debug - Mở GUI + Wave (quan trọng nhất lúc này)
-debug: gui
+# Regression với nhiều seed
+run_regression:
+	@echo "=== Running Regression with $(NUM_SEEDS) seeds ==="
+	@mkdir -p regression_logs $(COV_MERGE_DIR)
+	@for i in $$(seq 1 $(NUM_SEEDS)); do \
+		echo "→ Running seed $$i ..."; \
+		vsim -c $(COV_SIM) \
+			$(TOP_MODULE) \
+			+UVM_TESTNAME=$(TEST_NAME) \
+			+UVM_SEED=$$i \
+			-do "coverage save -onexit $(COV_MERGE_DIR)/$(TEST_NAME)_seed$$i.ucdb; run -all; quit -f" \
+			> regression_logs/$(TEST_NAME)_seed$$i.log 2>&1; \
+	done
 
-gui:
-	vsim -voptargs="+acc" -suppress 3009 \
-		$(TOP_MODULE) \
-		-do " \
-			add wave -r /*; \
-			run -all; \
-		"
+merge_coverage:
+	@echo "=== Merging Coverage ==="
+	@rm -f $(COV_MERGE_DIR)/merged.ucdb
+	@if ls $(COV_MERGE_DIR)/*.ucdb >/dev/null 2>&1; then \
+		vcover merge -out $(COV_MERGE_DIR)/merged.ucdb $(COV_MERGE_DIR)/*.ucdb; \
+		echo "Merge completed!"; \
+	else \
+		echo "ERROR: No .ucdb files found! Run regression first."; \
+	fi
 
-# Clean
+report:
+	@echo "=== Generating Coverage Report ==="
+	@mkdir -p $(COV_REPORT)
+	vcover report -details -html -htmldir $(COV_REPORT) $(COV_MERGE_DIR)/merged.ucdb
+	vcover report -details $(COV_MERGE_DIR)/merged.ucdb > $(COV_REPORT)/summary.txt
+	@echo "✅ Report generated at: ./$(COV_REPORT)/index.html"
+
 clean:
-	rm -rf work transcript vsim.wlf modelsim.ini *.log *.vcd *.wlf *.ucdb \
-	       *.cov *.html covhtml* regression_logs
+	rm -rf work transcript vsim.wlf modelsim.ini *.log *.vcd *.fsdb \
+	       regression_logs $(COV_MERGE_DIR) $(COV_REPORT) *.ucdb
 	@echo "=== Clean completed! ==="
 
-# =============================================
-# Utility
-# =============================================
+# Quick commands
+run: clean init compile sim
+debug: clean init compile gui
 
-re: clean compile sim
+gui:
+	vsim -voptargs="+acc" $(TOP_MODULE) -do "add wave -r /*; run -all"
 
-# Chạy nhanh chỉ compile + sim console
-run: clean compile sim
-
-# Help
-help:
-	@echo "Available targets:"
-	@echo "  make compile     - Compile design"
-	@echo "  make sim         - Run simulation in console"
-	@echo "  make debug / gui - Run with GUI + Waveform"
-	@echo "  make clean       - Clean everything"
-	@echo "  make all         - Clean + Compile + Run"
-	@echo "  make re          - Rebuild and run console"
-
-.PHONY: all init compile sim debug gui clean run re help
+.PHONY: all init compile sim run_regression merge_coverage report clean run debug gui
