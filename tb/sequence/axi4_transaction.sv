@@ -37,7 +37,8 @@ class axi4_transaction extends uvm_sequence_item;
   // 3. Constraints
   // =====================================================================
   constraint c_valid_burst {
-    axburst inside {AXI_BURST_FIXED, AXI_BURST_INCR, AXI_BURST_WRAP};
+    // Ép cứng kiểu tịnh tiến địa chỉ (INCR) để khớp tuyệt đối với cách cộng addr += 4 của Scoreboard
+    axburst == AXI_BURST_INCR; 
   }
 
   constraint c_addr_alignment {
@@ -53,7 +54,7 @@ class axi4_transaction extends uvm_sequence_item;
   }
 
   constraint c_len_range {
-    axlen inside {[0:63]};         // có thể mở rộng thành 255 sau
+    axlen inside {[0:15]};         // Giới hạn độ dài burst để tránh tràn FIFO ban đầu
   }
 
   // =====================================================================
