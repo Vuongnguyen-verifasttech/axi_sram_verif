@@ -1,14 +1,9 @@
 # =============================================================================
-# Filelist cho AXI4 SRAM UVM Verification Environment (QuestaSim)
+# Filelist cho AXI4 SRAM UVM Verification (QuestaSim) - Style include
 # =============================================================================
 
-# UVM Library
-+incdir+$UVM_HOME/src
-$UVM_HOME/src/uvm_pkg.sv
-
-# Package (phải compile trước)
-+incdir+../tb/pkg
-../tb/pkg/axi4_pkg.sv
+# UVM
+-uvm
 
 # RTL (DUT)
 ../rtl/m_vlsi_arbiter.sv
@@ -17,7 +12,19 @@ $UVM_HOME/src/uvm_pkg.sv
 ../rtl/m_vlsi_sram_misc.sv
 ../rtl/m_vlsi_axi4_sram.sv
 
-# TB files
+# TB - Include directories
++incdir+../tb/include
++incdir+../tb/interface
++incdir+../tb/agent
++incdir+../tb/sequence
++incdir+../tb/env
++incdir+../tb/scoreboard
++incdir+../tb/test
+
+# Package (nằm trong include)
+../tb/include/axi4_pkg.sv
+
+# Các file TB còn lại
 ../tb/interface/axi4_if.sv
 
 ../tb/agent/axi4_sequencer.sv
@@ -33,5 +40,5 @@ $UVM_HOME/src/uvm_pkg.sv
 ../tb/scoreboard/axi4_scoreboard.sv
 ../tb/test/base_test.sv
 
-# Top module
+# Top
 ../tb/top/tb_top.sv
