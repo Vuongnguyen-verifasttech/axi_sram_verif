@@ -14,23 +14,22 @@
 
 package axi4_pkg;
 
-  // Import UVM
   import uvm_pkg::*;
   `include "uvm_macros.svh"
 
-  // Include các class theo thứ tự đúng
-  `include "sequence/axi4_transaction.sv"
-  `include "sequence/axi4_base_seq.sv"
-  `include "sequence/axi4_write_seq.sv"
+  // Include theo đường dẫn tương đối từ thư mục include/
+  `include "../sequence/axi4_transaction.sv"
+  `include "../sequence/axi4_base_seq.sv"
+  `include "../sequence/axi4_write_seq.sv"
 
-  `include "agent/axi4_sequencer.sv"
-  `include "agent/axi4_driver.sv"
-  `include "agent/axi4_monitor.sv"
-  `include "agent/axi4_agent.sv"
+  `include "../agent/axi4_sequencer.sv"
+  `include "../agent/axi4_driver.sv"
+  `include "../agent/axi4_monitor.sv"
+  `include "../agent/axi4_agent.sv"
 
-  `include "env/axi4_env.sv"
-  `include "scoreboard/axi4_scoreboard.sv"
-  `include "test/base_test.sv"
+  `include "../env/axi4_env.sv"
+  `include "../scoreboard/axi4_scoreboard.sv"
+  `include "../test/base_test.sv"
 
 endpackage : axi4_pkg
 
