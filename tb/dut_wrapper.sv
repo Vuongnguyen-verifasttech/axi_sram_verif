@@ -4,10 +4,8 @@
 // Company       : [Verifast]
 // Project       : AXI4 SRAM Verification Environment
 // Description   : Wrapper cho DUT + Behavioral SRAM model
-//                 - Instantiate real DUT (m_vlsi_axi4_sram)
-//                 - Cung cấp SRAM behavioral model đơn giản
 //
-// Version       : 1.0
+// Version       : 1.1 (Fixed modport mst -> driver)
 // Date          : 29-May-2026
 //==============================================================================
 
@@ -20,7 +18,7 @@ module dut_wrapper #(
 ) (
     input logic i_clk,
     input logic i_rst_n,
-    axi4_if.mst axi_if
+    axi4_if.driver axi_if      // ← Sửa thành modport driver
 );
 
   // ============================================================================
@@ -41,7 +39,7 @@ module dut_wrapper #(
     .i_clk     (i_clk),
     .i_rst_n   (i_rst_n),
 
-    // AXI ports
+    // AXI ports - connect trực tiếp từ interface
     .i_awaddr  (axi_if.awaddr),
     .i_awvalid (axi_if.awvalid),
     .o_awready (axi_if.awready),
@@ -73,7 +71,7 @@ module dut_wrapper #(
     .o_rlast   (axi_if.rlast),
     .i_rready  (axi_if.rready),
 
-    // SRAM backend
+    // SRAM backend (chưa connect, để trống cho sau này)
     .o_sram_addr  (),
     .o_sram_wdata (),
     .o_sram_we    (),
