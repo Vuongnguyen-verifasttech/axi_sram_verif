@@ -9,52 +9,46 @@
 //                 - Supports both Write and Read paths in parallel
 //
 // Version       : 1.0
-// Date          : 1-June-2026
+// Date          : 29-May-2026
 //==============================================================================
 
 class axi4_monitor extends uvm_monitor;
-    `uvm_component_utils(axi4_monitor)
 
-// virtual interface 
-virtual axi4_if.monitor vif;
+  `uvm_component_utils(axi4_monitor)
 
-// Analysis port to broadcast trans --> SB 
-uvm_analysis_port#(axi4_transaction) ap;
+  // Virtual interface
+  virtual axi4_if.monitor vif;
 
-// =====================================================================
-// Constructor
-// =====================================================================
+  // Analysis port gửi transaction lên Scoreboard
+  uvm_analysis_port #(axi4_transaction) ap;
 
-function new (string name = "axi4_monitor", uvm_component parent = null)
+  // Constructor
+  function new(string name = "axi4_monitor", uvm_component parent = null);
     super.new(name, parent);
-endfunction
+  endfunction
 
-// =====================================================================
-// Build phase 
-// =====================================================================
-virtual function void build_phase(uvm_phase phase);
+  // Build phase
+  virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     ap = new("ap", this);
 
-    if(!uvm_config_db#(virtual axi4_if.monitor)::get(this,"","vif", vif)) begin 
-        `uvm_fatal(get_type_name(),"Can not get config_db!!!!")
+    if (!uvm_config_db#(virtual axi4_if.monitor)::get(this, "", "vif", vif)) begin
+      `uvm_fatal(get_type_name(), "Virtual interface (vif) not found in config_db!")
     end
-endfunction
+  endfunction
 
-// =====================================================================
-// Run phase 
-// =====================================================================
-virtual task run_phase(uvm_phase phase);
+  // Run phase - chạy 2 process song song
+  virtual task run_phase(uvm_phase phase);
     fork
-        collect_write_transaction();
-        collect_read_transaction();
+      collect_write_transactions();
+      collect_read_transactions();
     join
-endtask 
+  endtask
 
-// =====================================================================
-// Collect Write Transaction (AW + W)
-// =====================================================================
-virtual task collect_write_transactions();
+  // =====================================================================
+  // Collect Write Transaction (AW + W)
+  // =====================================================================
+  virtual task collect_write_transactions();
     axi4_transaction tr;
     forever begin
       tr = axi4_transaction::type_id::create("tr_write");
@@ -63,14 +57,14 @@ virtual task collect_write_transactions();
       wait(vif.cb_monitor.awvalid && vif.cb_monitor.awready);
       tr.axaddr  = vif.cb_monitor.awaddr;
       tr.axlen   = vif.cb_monitor.awlen;
-      tr.axburst = axi4_transaction::axi_burst_e'(vif.cb_monitor.awburst); // type cast: convert 2 bit value from bus --> enum 
+      tr.axburst = axi4_transaction::axi_burst_e'(vif.cb_monitor.awburst);
       tr.axid    = vif.cb_monitor.awid;
       tr.is_write = 1'b1;
 
       // Collect all W beats
       for (int i = 0; i <= tr.axlen; i++) begin
         wait(vif.cb_monitor.wvalid && vif.cb_monitor.wready);
-        tr.data.push_back(vif.cb_monitor.wdata); // add an element to the end of queue 
+        tr.data.push_back(vif.cb_monitor.wdata);
         if (vif.cb_monitor.wlast) break;
         @(vif.cb_monitor);
       end
@@ -79,7 +73,8 @@ virtual task collect_write_transactions();
       ap.write(tr);
     end
   endtask
-// =====================================================================
+
+  // =====================================================================
   // Collect Read Transaction (AR + R)
   // =====================================================================
   virtual task collect_read_transactions();
