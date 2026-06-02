@@ -10,7 +10,7 @@ class axi4_scoreboard extends uvm_scoreboard;
     // =====================================================================
     // Analysis Export (kết nối từ agent monitor)
     // =====================================================================
-    uvm_analysis_export #(axi4_transaction) analysis_export;
+    uvm_analysis_imp #(axi4_transaction, axi4_scoreboard) analysis_export;
 
     // =====================================================================
     // Golden Model
