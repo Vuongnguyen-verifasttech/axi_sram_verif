@@ -102,30 +102,28 @@ module tb_top;
     );
 
     // =====================================================================
-    // UVM Initial Block - Đã sửa thứ tự khai báo (Khai báo trước, câu lệnh sau)
+    // UVM Initial Block - Bản sửa lỗi chuẩn hóa uvm_config_db
     // =====================================================================
     initial begin
-        // 1. ĐƯA TẤT CẢ KHAI BÁO BIẾN LÊN ĐẦU BLOCK
+        // 1. Khai báo biến lên đầu block (Tránh lỗi biên dịch cũ)
         axi4_env_cfg env_cfg; 
 
-        // 2. CÁC CÂU LỆNH THỰC THI ĐẶT PHÍA SAU
         $display("=========================================");
         $display("AXI4 SRAM UVM Testbench STARTED at %0t", $time);
         $display("=========================================");
 
-        // Khởi tạo env_cfg thông qua factory
+        // 2. Khởi tạo env_cfg thông qua factory
         env_cfg = axi4_env_cfg::type_id::create("env_cfg");
         
-        // Pass virtual interface vào config_db
-        uvm_config_db#(virtual axi4_if)::set(null, "uvm_test_top.env.axi_agent*", "vif", axi_if);
+        // 3. FIX CHÍNH: Pass virtual interface với đúng modport (.master) và đúng path (.*)
+        uvm_config_db#(virtual axi4_if.master)::set(null, "uvm_test_top.env.axi_agent.*", "vif", axi_if);
 
-        // Set env config vào config_db
+        // 4. Set env config vào config_db
         uvm_config_db#(axi4_env_cfg)::set(null, "uvm_test_top*", "env_cfg", env_cfg);
 
-        // Chạy UVM test
+        // 5. Chạy UVM test
         run_test();
     end
-
     // =====================================================================
     // Dump Waveform Block - Đã chuẩn hóa cấu trúc
     // =====================================================================
