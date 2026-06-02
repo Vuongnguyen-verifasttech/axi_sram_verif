@@ -3,6 +3,12 @@ import uvm_pkg::*;
 `include "uvm_macros.svh"
 
 // =============================================================================
+// SỬA LỖI: Import các package chứa định nghĩa môi trường và testcase
+// =============================================================================
+import axi4_env_pkg::*;
+import axi4_test_pkg::*;
+
+// =============================================================================
 // tb_top.sv
 // Top-level Testbench - Tích hợp full UVM Environment
 // =============================================================================
@@ -99,11 +105,17 @@ module tb_top;
     // UVM Initial Block
     // =====================================================================
     initial begin
-        // Pass virtual interface vào config_db
-        uvm_config_db#(virtual axi4_if.master)::set(null, "uvm_test_top.axi_agent*", "vif", axi_if);
+        // Pass virtual interface vào config_db (Sử dụng đúng scope)
+        uvm_config_db#(virtual axi4_if)::set(null, "uvm_test_top.env.axi_agent*", "vif", axi_if);
 
-        // Set env config (có thể override trong testcase)
+        // Set env config (đã nhận diện được nhờ import package ở đầu file)
         axi4_env_cfg env_cfg = axi4_env_cfg::type_id::create("env_cfg");
+        
+        // Khởi tạo thêm agent_cfg bên trong nếu chưa được tạo tự động
+        if(env_cfg.agent_cfg == null) begin
+            env_cfg.agent_cfg = axi4_agent_cfg::type_id::create("agent_cfg");
+        end
+        
         uvm_config_db#(axi4_env_cfg)::set(null, "uvm_test_top*", "env_cfg", env_cfg);
 
         $display("=========================================");
