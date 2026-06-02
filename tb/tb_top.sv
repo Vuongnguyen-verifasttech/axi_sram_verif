@@ -119,7 +119,7 @@ module tb_top;
         uvm_config_db#(virtual axi4_if.master)::set(null, "uvm_test_top.env.axi_agent.*", "vif", axi_if);
 
         // 2. SỬA LỖI: Cung cấp thêm interface modport .monitor cho Monitor
-        uvm_config_db#(virtual axi4_if.monitor)::set(null, "uvm_test_top.env.axi_agent.*", "vif", axi_if);
+        uvm_config_db#(virtual axi4_if.slave)::set(null, "uvm_test_top.env.axi_agent.*", "vif", axi_if);
 
         // 4. Set env config vào config_db
         uvm_config_db#(axi4_env_cfg)::set(null, "uvm_test_top*", "env_cfg", env_cfg);
