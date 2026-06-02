@@ -102,34 +102,35 @@ module tb_top;
     );
 
     // =====================================================================
-    // UVM Initial Block
+    // UVM Initial Block - Đã sửa thứ tự khai báo (Khai báo trước, câu lệnh sau)
     // =====================================================================
     initial begin
-        // Pass virtual interface vào config_db (Sử dụng đúng scope)
-        uvm_config_db#(virtual axi4_if)::set(null, "uvm_test_top.env.axi_agent*", "vif", axi_if);
+        // 1. ĐƯA TẤT CẢ KHAI BÁO BIẾN LÊN ĐẦU BLOCK
+        axi4_env_cfg env_cfg; 
 
-        // Set env config (đã nhận diện được nhờ import package ở đầu file)
-        axi4_env_cfg env_cfg = axi4_env_cfg::type_id::create("env_cfg");
-        
-        // Khởi tạo thêm agent_cfg bên trong nếu chưa được tạo tự động
-        if(env_cfg.agent_cfg == null) begin
-            env_cfg.agent_cfg = axi4_agent_cfg::type_id::create("agent_cfg");
-        end
-        
-        uvm_config_db#(axi4_env_cfg)::set(null, "uvm_test_top*", "env_cfg", env_cfg);
-
+        // 2. CÁC CÂU LỆNH THỰC THI ĐẶT PHÍA SAU
         $display("=========================================");
         $display("AXI4 SRAM UVM Testbench STARTED at %0t", $time);
         $display("=========================================");
+
+        // Khởi tạo env_cfg thông qua factory
+        env_cfg = axi4_env_cfg::type_id::create("env_cfg");
+        
+        // Pass virtual interface vào config_db
+        uvm_config_db#(virtual axi4_if)::set(null, "uvm_test_top.env.axi_agent*", "vif", axi_if);
+
+        // Set env config vào config_db
+        uvm_config_db#(axi4_env_cfg)::set(null, "uvm_test_top*", "env_cfg", env_cfg);
 
         // Chạy UVM test
         run_test();
     end
 
-    // Optional: Dump waveform
+    // =====================================================================
+    // Dump Waveform Block - Đã chuẩn hóa cấu trúc
+    // =====================================================================
     initial begin
         $dumpfile("axi4_sram_tb.vcd");
         $dumpvars(0, tb_top);
     end
-
 endmodule : tb_top
