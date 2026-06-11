@@ -125,7 +125,7 @@ module tb_top;
     // =========================================================================
     // UVM config_db — Sửa đổi: Bỏ modport (.master/.slave) khỏi tham số DB
     // =========================================================================
-   initial begin
+  initial begin
     axi4_env_cfg env_cfg;
     env_cfg = axi4_env_cfg::type_id::create("env_cfg");
     uvm_config_db#(axi4_env_cfg)::set(null, "uvm_test_top.env", "env_cfg", env_cfg);
@@ -136,10 +136,10 @@ module tb_top;
     uvm_config_db#(virtual axi4_if.master)::set(
         null, "uvm_test_top.env.axi_agent.rd_driver", "vif", axi_if);
 
-    // Monitor dùng modport gì thì set type đó tương ứng (xem lại monitor file)
-    uvm_config_db#(virtual axi4_if.master)::set(
+    // Monitor dùng modport slave
+    uvm_config_db#(virtual axi4_if.slave)::set(
         null, "uvm_test_top.env.axi_agent.wr_monitor", "vif", axi_if);
-    uvm_config_db#(virtual axi4_if.master)::set(
+    uvm_config_db#(virtual axi4_if.slave)::set(
         null, "uvm_test_top.env.axi_agent.rd_monitor", "vif", axi_if);
 
     run_test();
