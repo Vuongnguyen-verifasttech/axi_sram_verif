@@ -49,6 +49,11 @@ module tb_top;
     logic        sram_we;
     logic        sram_oe;
 
+    initial begin
+        foreach (sram_mem[i]) sram_mem[i] = 32'hDEAD_BEEF;
+    end
+
+
     always_ff @(posedge clk) begin
         if (sram_we)
             sram_mem[sram_addr[11:2]] <= sram_wdata;
@@ -61,10 +66,7 @@ module tb_top;
             sram_rdata <= '0;
     end
 
-    initial begin
-        foreach (sram_mem[i]) sram_mem[i] = 32'hDEAD_BEEF;
-    end
-
+    
     // =========================================================================
     // DUT instantiation
     // =========================================================================
