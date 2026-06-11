@@ -84,6 +84,13 @@ class axi4_wr_monitor extends uvm_monitor;
             // AW Channel
             //------------------------------------------------------------------
 @(posedge vif.i_clk iff (vif.slave_cb.awvalid && vif.slave_cb.awready));
+                            `uvm_info("MON_AW",
+                $sformatf(
+                "@%0t AW handshake awid=%0h awaddr=%0h",
+                $time,
+                vif.slave_cb.awid,
+                vif.slave_cb.awaddr),
+                UVM_NONE)
 
             // Handshake thanh cong, capture lại transaction: awaddr, awid, awlen, awburst
 
@@ -132,6 +139,12 @@ class axi4_wr_monitor extends uvm_monitor;
             do begin
                 @(posedge vif.i_clk);
             end while (!(vif.slave_cb.bvalid && vif.slave_cb.bready));
+                            `uvm_info("MON_B",
+                $sformatf(
+                "@%0t B handshake bid=%0h",
+                $time,
+                vif.slave_cb.bid),
+            UVM_NONE)
 
             tr.bresp = vif.slave_cb.bresp; // capture response 
             tr.bid   = vif.slave_cb.bid;
