@@ -16,7 +16,7 @@ package axi4_env_pkg;
     // =====================================================================
     // Virtual Sequencer (định nghĩa ở đây để tránh circular dependency)
     // =====================================================================
-    `include "../seq/axi4_virtual_seqr.sv"
+    //`include "../seq/axi4_virtual_seqr.sv"
 
     // =====================================================================
     // Include các file của env (Theo thứ tự phụ thuộc chuẩn)
