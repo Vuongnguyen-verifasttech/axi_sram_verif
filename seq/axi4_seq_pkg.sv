@@ -8,6 +8,7 @@
 package axi4_seq_pkg;
 
     import uvm_pkg::*;
+    import axi4_vseqr_pkg::*;
     `include "uvm_macros.svh"
     
     import axi4_agent_pkg::*;
