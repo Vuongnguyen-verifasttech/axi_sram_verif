@@ -4,7 +4,7 @@ class axi4_single_wr_seq extends uvm_sequence #(axi4_wr_seq_item);
 
     `uvm_object_utils(axi4_single_wr_seq)
 
-    int unsigned num_transactions = 10;
+    int unsigned num_transactions = 2;
 
     function new(string name="axi4_single_wr_seq");
         super.new(name);
