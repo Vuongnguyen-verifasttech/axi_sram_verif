@@ -8,6 +8,7 @@
 import uvm_pkg::*;
 `include "uvm_macros.svh" // Đã bỏ dấu chấm phẩy thừa ở đây
 import axi4_test_pkg::*;  // con 1 cach nua la that run_test() thanhf run_test("axi4_base_test"); nhung cach nay tienj hon
+import axi4_env_pkg::*;
 
 module tb_top;
 
@@ -125,10 +126,8 @@ module tb_top;
     // UVM config_db — Sửa đổi: Bỏ modport (.master/.slave) khỏi tham số DB
     // =========================================================================
     initial begin
-         axi4_env_cfg env_cfg = axi4_env_cfg::type_id::create("env_cfg");
-    // nếu cần override giá trị mặc định:
-    // env_cfg.fifo_depth = 8;
-    // env_cfg.enable_scoreboard = 1;
+         axi4_env_cfg env_cfg;
+        env_cfg = axi4_env_cfg::type_id::create("env_cfg");
         // Truyền toàn bộ virtual interface vào config_db
         uvm_config_db#(virtual axi4_if)::set(
             null, "uvm_test_top.env.agent.wr_driver", "vif", axi_if);
