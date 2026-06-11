@@ -128,6 +128,7 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // Drive AW Channel
     // =========================================================================
     virtual task drive_aw_channel(axi4_wr_seq_item tr);
+      `uvm_info("DBG_AW","ENTER drive_aw_channel", UVM_NONE)   // <-- thêm dòng này
 
         // Setup phase
         vif.master_cb.awaddr  <= tr.awaddr;
