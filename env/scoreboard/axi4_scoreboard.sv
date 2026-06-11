@@ -257,27 +257,7 @@ class axi4_scoreboard extends uvm_scoreboard;
 
                 // INCR
                 2'b01:
-                    addr = addr + 4;                   
-                     string msg;
-                    msg = $sformatf(
-                        "\n==================================================\n"
-                        " Scoreboard Summary\n"
-                        "==================================================\n"
-                        " Writes       : %0d\n"
-                        " Reads        : %0d\n"
-                        " Data Errors  : %0d\n"
-                        " Resp Errors  : %0d\n"
-                        " ID Errors    : %0d\n"
-                        " Beat Errors  : %0d\n"
-                        "==================================================",
-                        wr_count,
-                        rd_count,
-                        rd_mismatch,
-                        resp_error,
-                        id_error,
-                        beat_error);
-                
-                    `uvm_info("SB_REPORT", msg, UVM_NONE)
+                    addr = addr + 4;
 
                 // Match DUT implementation
                 2'b10:
@@ -299,13 +279,14 @@ class axi4_scoreboard extends uvm_scoreboard;
 
     endfunction
 
-    // =========================================================================
+        // =========================================================================
     // Report
     // =========================================================================
     virtual function void report_phase(uvm_phase phase);
 
-        `uvm_info("SB_REPORT",
-            $sformatf(
+        string msg;
+
+        msg = $sformatf(
             "\n==================================================\n"
             " Scoreboard Summary\n"
             "==================================================\n"
@@ -321,8 +302,9 @@ class axi4_scoreboard extends uvm_scoreboard;
             rd_mismatch,
             resp_error,
             id_error,
-            beat_error),
-            UVM_NONE)
+            beat_error);
+
+        `uvm_info("SB_REPORT", msg, UVM_NONE)
 
         if ((rd_mismatch == 0) &&
             (resp_error == 0) &&
@@ -340,4 +322,4 @@ class axi4_scoreboard extends uvm_scoreboard;
 
     endfunction
 
-endclass
+endclass : axi4_scoreboard
