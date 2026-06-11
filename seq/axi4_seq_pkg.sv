@@ -15,7 +15,7 @@ package axi4_seq_pkg;
     // =====================================================================
     // Virtual Sequencer (giúp test spawn sequence trên multiple channels)
     // =====================================================================
-    `include "axi4_virtual_seqr.sv"
+   // `include "axi4_virtual_seqr.sv"
 
     // =====================================================================
     // Base Sequences (virtual tasks cho write/read)
