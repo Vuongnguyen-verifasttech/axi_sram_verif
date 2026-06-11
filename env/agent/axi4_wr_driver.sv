@@ -74,10 +74,12 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
 
     // flow: Get trans tu sequencer --> Gui address (AW) --> Gui data (W) --> Nhan Respone(B) --> Bao hoan thanh --> Next trans
     virtual task run_phase(uvm_phase phase);
+        @(posedge vif.i_clk);
 
         reset_wr_signals();
 
-        @(posedge vif.i_clk); // Wait for DUT & if stable 
+       wait (vif.i_rst_n === 1'b1);
+    @(posedge vif.i_clk);  // Wait for DUT & if stable 
 
         forever begin
 
@@ -138,10 +140,9 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
         vif.master_cb.awvalid <= 1'b1;
 
         // Wait handshake : Moi clk kiem tra awready, neu awready = 0 --> tiep tuc cho, =1 --> handshake thanh cong
-        do begin
             @(posedge vif.i_clk);
-        end
-        while (!vif.master_cb.awready);
+            while (!vif.master_cb.awready)
+                @(posedge vif.i_clk);
 
         // Handshake completed : address trans da ket thuc --> DUT da nhan du thong tin AW 
         vif.master_cb.awvalid <= 1'b0;
@@ -186,10 +187,9 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
             vif.master_cb.wvalid <= 1'b1;
 
             // Wait handshake
-            do begin
+                        @(posedge vif.i_clk);
+            while (!vif.master_cb.wready)
                 @(posedge vif.i_clk);
-            end
-            while (!vif.master_cb.wready);
 
             // Beat accepted
             vif.master_cb.wvalid <= 1'b0;
@@ -212,10 +212,9 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // =========================================================================
     virtual task drive_b_channel(axi4_wr_seq_item tr);
 
-        do begin
-            @(posedge vif.i_clk);
-        end
-        while (!vif.master_cb.bvalid);
+                    @(posedge vif.i_clk);
+            while (!vif.master_cb.bvalid)
+                @(posedge vif.i_clk);
 
         tr.bresp = vif.master_cb.bresp;
         tr.bid   = vif.master_cb.bid;
