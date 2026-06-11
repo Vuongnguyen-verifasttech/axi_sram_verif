@@ -7,6 +7,7 @@
 // =============================================================================
 import uvm_pkg::*;
 `include "uvm_macros.svh" // Đã bỏ dấu chấm phẩy thừa ở đây
+import axi4_test_pkg::*;  // con 1 cach nua la that run_test() thanhf run_test("axi4_base_test"); nhung cach nay tienj hon
 
 module tb_top;
 
