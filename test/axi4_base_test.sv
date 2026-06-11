@@ -13,6 +13,7 @@ class axi4_base_test extends uvm_test;
     // Environment
     // =====================================================================
     axi4_env env;
+    axi4_env_cfg   env_cfg;
 
     // =====================================================================
     // UVM Automation
@@ -29,8 +30,15 @@ class axi4_base_test extends uvm_test;
     // =====================================================================
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
+
+        // 1. Tạo config object
+        env_cfg = axi4_env_cfg::type_id::create("env_cfg");
+
+        // 2. SET vào config_db - PHẢI làm trước khi env build_phase chạy
+        uvm_config_db#(axi4_env_cfg)::set(this, "env", "env_cfg", env_cfg);
+
+        // 3. Tạo env
         env = axi4_env::type_id::create("env", this);
-        `uvm_info(get_type_name(), "axi4_base_test build completed", UVM_LOW)
     endfunction
 
     // =====================================================================
