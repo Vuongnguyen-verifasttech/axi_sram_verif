@@ -110,17 +110,17 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // =========================================================================
     virtual task reset_wr_signals();
 
-        vif.awvalid <= 1'b0;
-        vif.awaddr  <= '0;
-        vif.awid    <= '0;
-        vif.awlen   <= '0;
-        vif.awburst <= 2'b01;
+        vif.master_cb.awvalid <= 1'b0;
+        vif.master_cb.awaddr  <= '0;
+        vif.master_cb.awid    <= '0;
+        vif.master_cb.awlen   <= '0;
+        vif.master_cb.awburst <= 2'b01;
 
-        vif.wvalid  <= 1'b0;
-        vif.wdata   <= '0;
-        vif.wlast   <= 1'b0;
+        vif.master_cb.wvalid  <= 1'b0;
+        vif.master_cb.wdata   <= '0;
+        vif.master_cb.wlast   <= 1'b0;
 
-        vif.bready  <= 1'b1;
+        vif.master_cb.bready  <= 1'b1;
 
     endtask
 
@@ -130,21 +130,21 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     virtual task drive_aw_channel(axi4_wr_seq_item tr);
 
         // Setup phase
-        vif.awaddr  <= tr.awaddr;
-        vif.awid    <= tr.awid;
-        vif.awlen   <= tr.awlen;
-        vif.awburst <= tr.awburst;
-        vif.awvalid <= 1'b1;
+        vif.master_cb.awaddr  <= tr.awaddr;
+        vif.master_cb.awid    <= tr.awid;
+        vif.master_cb.awlen   <= tr.awlen;
+        vif.master_cb.awburst <= tr.awburst;
+        vif.master_cb.awvalid <= 1'b1;
 
         // Wait handshake : Moi clk kiem tra awready, neu awready = 0 --> tiep tuc cho, =1 --> handshake thanh cong
         do begin
             @(posedge vif.i_clk);
         end
-        while (!vif.awready);
+        while (!vif.master_cb.awready);
 
         // Handshake completed : address trans da ket thuc --> DUT da nhan du thong tin AW 
-        vif.awvalid <= 1'b0;
-        vif.awaddr  <= '0;
+        vif.master_cb.awvalid <= 1'b0;
+        vif.master_cb.awaddr  <= '0;
 
         `uvm_info(get_type_name(),
                   $sformatf("AW done: AWADDR=0x%0h AWID=0x%0h AWLEN=%0d",
@@ -173,25 +173,25 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
                     0;
 
                 if (bp_cycles > 0) begin
-                    vif.wvalid <= 1'b0;
+                    vif.master_cb.wvalid <= 1'b0;
                     repeat (bp_cycles)
                         @(posedge vif.i_clk);
                 end
             end
 
             // Drive beat
-            vif.wdata  <= tr.wdata[i];
-            vif.wlast  <= (i == int'(tr.awlen));
-            vif.wvalid <= 1'b1;
+            vif.master_cb.wdata  <= tr.wdata[i];
+            vif.master_cb.wlast  <= (i == int'(tr.awlen));
+            vif.master_cb.wvalid <= 1'b1;
 
             // Wait handshake
             do begin
                 @(posedge vif.i_clk);
             end
-            while (!vif.wready);
+            while (!vif.master_cb.wready);
 
             // Beat accepted
-            vif.wvalid <= 1'b0;
+            vif.master_cb.wvalid <= 1'b0;
 
             `uvm_info(get_type_name(),
                       $sformatf("W beat[%0d]: WDATA=0x%0h WLAST=%0b",
@@ -202,7 +202,7 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
 
         end
 
-        vif.wlast <= 1'b0;
+        vif.master_cb.wlast <= 1'b0;
 
     endtask
 
@@ -214,10 +214,10 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
         do begin
             @(posedge vif.i_clk);
         end
-        while (!vif.bvalid);
+        while (!vif.master_cb.bvalid);
 
-        tr.bresp = vif.bresp;
-        tr.bid   = vif.bid;
+        tr.bresp = vif.master_cb.bresp;
+        tr.bid   = vif.master_cb.bid;
 
         `uvm_info(get_type_name(),
                   $sformatf("B done: BID=0x%0h BRESP=%0b",
