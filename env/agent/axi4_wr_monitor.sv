@@ -83,9 +83,7 @@ class axi4_wr_monitor extends uvm_monitor;
             //------------------------------------------------------------------
             // AW Channel
             //------------------------------------------------------------------
-            do begin
-                @(posedge vif.i_clk);
-            end while (!(vif.slave_cb.awvalid && vif.slave_cb.awready));
+@(posedge vif.i_clk iff (vif.slave_cb.awvalid && vif.slave_cb.awready));
 
             // Handshake thanh cong, capture lại transaction: awaddr, awid, awlen, awburst
 

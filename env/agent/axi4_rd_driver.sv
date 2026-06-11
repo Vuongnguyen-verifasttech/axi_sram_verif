@@ -44,8 +44,10 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // Run Phase
     // =========================================================================
     virtual task run_phase(uvm_phase phase);
-        reset_rd_signals();
         @(posedge vif.i_clk);
+        reset_rd_signals();
+         wait (vif.i_rst_n === 1'b1);
+    @(posedge vif.i_clk);
 
         forever begin
             axi4_rd_seq_item tr;
@@ -86,9 +88,9 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
 
         //Giu arvalid cho cho den khi arready = 1 --> handshake thanh cong --> luc nay dut da nhan Address, Burst type, ID ...
 
-        do begin
-            @(posedge vif.i_clk);
-        end while (!vif.master_cb.arready);
+        @(posedge vif.i_clk);
+while (!vif.master_cb.arready)
+    @(posedge vif.i_clk);
 
         vif.master_cb.arvalid <= 1'b0;
         vif.master_cb.araddr  <= '0;

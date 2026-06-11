@@ -117,11 +117,7 @@ class axi4_rd_monitor extends uvm_monitor;
         axi4_rd_seq_item tr; 
 
         forever begin
-
-            do begin
-                @(posedge vif.i_clk);
-            end
-            while (!(vif.slave_cb.arvalid && vif.slave_cb.arready)); //đợi handshake AR
+@(posedge vif.i_clk iff (vif.slave_cb.arvalid && vif.slave_cb.arready));
 
             tr = axi4_rd_seq_item::type_id::create("tr_ar");
 
