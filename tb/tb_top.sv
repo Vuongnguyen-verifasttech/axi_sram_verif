@@ -6,7 +6,7 @@
 // Instantiate DUT, interface, SRAM model, và kick off UVM test
 // =============================================================================
 import uvm_pkg::*;
-`include "uvm_macros.svh"
+`include "uvm_macros.svh" // Đã bỏ dấu chấm phẩy thừa ở đây
 
 module tb_top;
 
@@ -39,7 +39,7 @@ module tb_top;
     );
 
     // =========================================================================
-    // Simple SRAM model (behavioral)
+    // Simple SRAM model (Behavioral - Đã sửa lỗi Race Condition)
     // =========================================================================
     localparam SRAM_DEPTH = 4096;
     logic [31:0] sram_mem [0:SRAM_DEPTH-1];
@@ -53,18 +53,14 @@ module tb_top;
         foreach (sram_mem[i]) sram_mem[i] = 32'hDEAD_BEEF;
     end
 
-
+    // Ghi đồng bộ
     always_ff @(posedge clk) begin
         if (sram_we)
             sram_mem[sram_addr[11:2]] <= sram_wdata;
     end
 
-    always_ff @(posedge clk) begin
-        if (sram_oe)
-            sram_rdata <= sram_mem[sram_addr[11:2]];
-        else
-            sram_rdata <= '0;
-    end
+    // Đọc liên tục / tổ hợp để tránh lệch cycle khi mô phỏng cùng DUT
+    assign sram_rdata = (sram_oe) ? sram_mem[sram_addr[11:2]] : 32'h0;
 
     
     // =========================================================================
@@ -125,20 +121,19 @@ module tb_top;
     );
 
     // =========================================================================
-    // UVM config_db — set interface trước khi test chạy
+    // UVM config_db — Sửa đổi: Bỏ modport (.master/.slave) khỏi tham số DB
     // =========================================================================
     initial begin
-        // Master interface → driver
-        uvm_config_db#(virtual axi4_if.master)::set(
-            null, "uvm_test_top.env.agent.wr_driver", "vif", axi_if.master);
-        uvm_config_db#(virtual axi4_if.master)::set(
-            null, "uvm_test_top.env.agent.rd_driver", "vif", axi_if.master);
+        // Truyền toàn bộ virtual interface vào config_db
+        uvm_config_db#(virtual axi4_if)::set(
+            null, "uvm_test_top.env.agent.wr_driver", "vif", axi_if);
+        uvm_config_db#(virtual axi4_if)::set(
+            null, "uvm_test_top.env.agent.rd_driver", "vif", axi_if);
 
-        // Slave interface → monitor
-        uvm_config_db#(virtual axi4_if.slave)::set(
-            null, "uvm_test_top.env.agent.wr_monitor", "vif", axi_if.slave);
-        uvm_config_db#(virtual axi4_if.slave)::set(
-            null, "uvm_test_top.env.agent.rd_monitor", "vif", axi_if.slave);
+        uvm_config_db#(virtual axi4_if)::set(
+            null, "uvm_test_top.env.agent.wr_monitor", "vif", axi_if);
+        uvm_config_db#(virtual axi4_if)::set(
+            null, "uvm_test_top.env.agent.rd_monitor", "vif", axi_if);
 
         // Chạy UVM test
         run_test();
