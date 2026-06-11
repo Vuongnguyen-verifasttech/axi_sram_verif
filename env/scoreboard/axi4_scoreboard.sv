@@ -277,9 +277,9 @@ class axi4_scoreboard extends uvm_scoreboard;
                       tr.rdata.size()),
             UVM_MEDIUM)
 
-    endfunction
+        endfunction
 
-        // =========================================================================
+    // =========================================================================
     // Report
     // =========================================================================
     virtual function void report_phase(uvm_phase phase);
@@ -287,15 +287,15 @@ class axi4_scoreboard extends uvm_scoreboard;
         string msg;
 
         msg = $sformatf(
-            "\n==================================================\n"
-            " Scoreboard Summary\n"
-            "==================================================\n"
-            " Writes       : %0d\n"
-            " Reads        : %0d\n"
-            " Data Errors  : %0d\n"
-            " Resp Errors  : %0d\n"
-            " ID Errors    : %0d\n"
-            " Beat Errors  : %0d\n"
+            "\n==================================================\n" +
+            " Scoreboard Summary\n" +
+            "==================================================\n" +
+            " Writes       : %0d\n" +
+            " Reads        : %0d\n" +
+            " Data Errors  : %0d\n" +
+            " Resp Errors  : %0d\n" +
+            " ID Errors    : %0d\n" +
+            " Beat Errors  : %0d\n" +
             "==================================================",
             wr_count,
             rd_count,
