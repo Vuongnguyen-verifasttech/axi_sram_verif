@@ -54,7 +54,7 @@ module tb_top;
     end
 
     // Ghi đồng bộ
-    always_ff @(posedge clk) begin
+    always @(posedge clk) begin
         if (sram_we)
             sram_mem[sram_addr[11:2]] <= sram_wdata;
     end
