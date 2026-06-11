@@ -168,7 +168,7 @@ class axi4_rd_monitor extends uvm_monitor;
 
                 @(posedge vif.i_clk);
 
-                if (!(vif.rready.rvalid && vif.rready.rready)) // doi handshake 
+                if (!(vif.slave_cb.rvalid && vif.slave_cb.rready)) // doi handshake 
                     continue;
 
                 tr.rdata.push_back(vif.slave_cb.rdata);
