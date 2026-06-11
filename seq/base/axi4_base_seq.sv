@@ -87,9 +87,10 @@ class axi4_base_seq extends uvm_sequence;
         if (!rd_item.randomize() with { araddr == wr_item.awaddr; }) begin
             `uvm_error(get_type_name(), "Failed to randomize rd_item")
         end
-
-        `uvm_info(get_type_name(), "Write-Read integrity test: WR_ADDR=0x%0h RD_ADDR=0x%0h", 
-                  wr_item.awaddr, rd_item.araddr, UVM_MEDIUM)
+        `uvm_info(get_type_name(),
+          $sformatf("Write-Read integrity test: WR_ADDR=0x%0h RD_ADDR=0x%0h",
+                    wr_item.awaddr, rd_item.araddr),
+          UVM_MEDIUM)
     endtask
 
 endclass : axi4_base_seq

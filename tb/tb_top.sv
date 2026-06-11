@@ -5,6 +5,8 @@
 // Testbench top-level module
 // Instantiate DUT, interface, SRAM model, và kick off UVM test
 // =============================================================================
+import uvm_pkg::*;
+`include "uvm_macros.svh"
 
 module tb_top;
 

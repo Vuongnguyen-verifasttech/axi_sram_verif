@@ -6,7 +6,8 @@
 // Gồm clocking blocks để đảm bảo sample/drive đúng clock domain
 // Modports: master (driver dùng), slave (monitor dùng)
 // =============================================================================
-
+import uvm_pkg::*;
+`include "uvm_macros.svh"
 interface axi4_if #(
     parameter ADDR_WD = 32,
     parameter DATA_WD = 32,
