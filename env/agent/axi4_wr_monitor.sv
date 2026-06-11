@@ -140,10 +140,12 @@ class axi4_wr_monitor extends uvm_monitor;
                 @(posedge vif.i_clk);
             end while (!(vif.slave_cb.bvalid && vif.slave_cb.bready));
                             `uvm_info("MON_B",
-                $sformatf(
-                "@%0t B handshake bid=%0h",
-                $time,
-                vif.slave_cb.bid),
+            $sformatf(
+            "@%0t bvalid=%0b bready=%0b bid=%0h",
+            $time,
+            vif.slave_cb.bvalid,
+            vif.slave_cb.bready,
+            vif.slave_cb.bid),
             UVM_NONE)
 
             tr.bresp = vif.slave_cb.bresp; // capture response 

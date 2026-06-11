@@ -215,13 +215,14 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
                     @(posedge vif.i_clk);
             while (!vif.master_cb.bvalid)
                 @(posedge vif.i_clk);
-                `uvm_info("DRV_B",
+                            `uvm_info("DRV_B",
             $sformatf(
-            "@%0t B handshake bid=%0h",
+            "@%0t bvalid=%0b bready=%0b bid=%0h",
             $time,
+            vif.master_cb.bvalid,
+            vif.master_cb.bready,
             vif.master_cb.bid),
             UVM_NONE)
-
         tr.bresp = vif.master_cb.bresp;
         tr.bid   = vif.master_cb.bid;
 
