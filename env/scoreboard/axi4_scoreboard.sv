@@ -257,7 +257,27 @@ class axi4_scoreboard extends uvm_scoreboard;
 
                 // INCR
                 2'b01:
-                    addr = addr + 4;
+                    addr = addr + 4;                   
+                     string msg;
+                    msg = $sformatf(
+                        "\n==================================================\n"
+                        " Scoreboard Summary\n"
+                        "==================================================\n"
+                        " Writes       : %0d\n"
+                        " Reads        : %0d\n"
+                        " Data Errors  : %0d\n"
+                        " Resp Errors  : %0d\n"
+                        " ID Errors    : %0d\n"
+                        " Beat Errors  : %0d\n"
+                        "==================================================",
+                        wr_count,
+                        rd_count,
+                        rd_mismatch,
+                        resp_error,
+                        id_error,
+                        beat_error);
+                
+                    `uvm_info("SB_REPORT", msg, UVM_NONE)
 
                 // Match DUT implementation
                 2'b10:
