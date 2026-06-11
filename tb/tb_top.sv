@@ -125,23 +125,25 @@ module tb_top;
     // =========================================================================
     // UVM config_db — Sửa đổi: Bỏ modport (.master/.slave) khỏi tham số DB
     // =========================================================================
-    initial begin
-         axi4_env_cfg env_cfg;
-        env_cfg = axi4_env_cfg::type_id::create("env_cfg");
-        // Truyền toàn bộ virtual interface vào config_db
-        uvm_config_db#(virtual axi4_if)::set(
-            null, "uvm_test_top.env.agent.wr_driver", "vif", axi_if);
-        uvm_config_db#(virtual axi4_if)::set(
-            null, "uvm_test_top.env.agent.rd_driver", "vif", axi_if);
+   initial begin
+    axi4_env_cfg env_cfg;
+    env_cfg = axi4_env_cfg::type_id::create("env_cfg");
+    uvm_config_db#(axi4_env_cfg)::set(null, "uvm_test_top.env", "env_cfg", env_cfg);
 
-        uvm_config_db#(virtual axi4_if)::set(
-            null, "uvm_test_top.env.agent.wr_monitor", "vif", axi_if);
-        uvm_config_db#(virtual axi4_if)::set(
-            null, "uvm_test_top.env.agent.rd_monitor", "vif", axi_if);
+    // Driver dùng modport master
+    uvm_config_db#(virtual axi4_if.master)::set(
+        null, "uvm_test_top.env.axi_agent.wr_driver", "vif", axi_if);
+    uvm_config_db#(virtual axi4_if.master)::set(
+        null, "uvm_test_top.env.axi_agent.rd_driver", "vif", axi_if);
 
-        // Chạy UVM test
-        run_test();
-    end
+    // Monitor dùng modport gì thì set type đó tương ứng (xem lại monitor file)
+    uvm_config_db#(virtual axi4_if.master)::set(
+        null, "uvm_test_top.env.axi_agent.wr_monitor", "vif", axi_if);
+    uvm_config_db#(virtual axi4_if.master)::set(
+        null, "uvm_test_top.env.axi_agent.rd_monitor", "vif", axi_if);
+
+    run_test();
+end
 
     // =========================================================================
     // Timeout watchdog
