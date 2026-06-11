@@ -85,14 +85,14 @@ class axi4_wr_monitor extends uvm_monitor;
             //------------------------------------------------------------------
             do begin
                 @(posedge vif.i_clk);
-            end while (!(vif.awvalid && vif.awready));
+            end while (!(vif.slave_cb.awvalid && vif.slave_cb.awready));
 
             // Handshake thanh cong, capture lại transaction: awaddr, awid, awlen, awburst
 
-            tr.awaddr  = vif.awaddr;
-            tr.awid    = vif.awid;
-            tr.awlen   = vif.awlen;
-            tr.awburst = vif.awburst;
+            tr.awaddr  = vif.slave_cb.awaddr;
+            tr.awid    = vif.slave_cb.awid;
+            tr.awlen   = vif.slave_cb.awlen;
+            tr.awburst = vif.slave_cb.awburst;
 
             num_beats = tr.awlen + 1; // tinh lai so beats to capture chinh xac 
             
@@ -116,15 +116,15 @@ class axi4_wr_monitor extends uvm_monitor;
 
                 do begin
                     @(posedge vif.i_clk); // chờ handshake của W
-                end while (!(vif.wvalid && vif.wready));
+                end while (!(vif.slave_cb.wvalid && vif.slave_cb.wready));
 
-                tr.wdata.push_back(vif.wdata); // capture 
+                tr.wdata.push_back(vif.slave_cb.wdata); // capture 
 
                 `uvm_info(get_type_name(),
                           $sformatf(
                             "W beat[%0d]: WDATA=0x%0h",
                             tr.wdata.size()-1,
-                            vif.wdata),
+                            vif.slave_cb.wdata),
                           UVM_HIGH)
             end
 
@@ -133,10 +133,10 @@ class axi4_wr_monitor extends uvm_monitor;
             //------------------------------------------------------------------
             do begin
                 @(posedge vif.i_clk);
-            end while (!(vif.bvalid && vif.bready));
+            end while (!(vif.slave_cb.bvalid && vif.slave_cb.bready));
 
-            tr.bresp = vif.bresp; // capture response 
-            tr.bid   = vif.bid;
+            tr.bresp = vif.slave_cb.bresp; // capture response 
+            tr.bid   = vif.slave_cb.bid;
 
             `uvm_info(get_type_name(),
                       $sformatf(

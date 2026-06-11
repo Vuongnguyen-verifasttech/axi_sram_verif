@@ -121,16 +121,16 @@ class axi4_rd_monitor extends uvm_monitor;
             do begin
                 @(posedge vif.i_clk);
             end
-            while (!(vif.arvalid && vif.arready)); //đợi handshake AR
+            while (!(vif.slave_cb.arvalid && vif.slave_cb.arready)); //đợi handshake AR
 
             tr = axi4_rd_seq_item::type_id::create("tr_ar");
 
             // Capture thông tin requesst
 
-            tr.araddr  = vif.araddr;
-            tr.arid    = vif.arid;
-            tr.arlen   = vif.arlen;
-            tr.arburst = vif.arburst;
+            tr.araddr  = vif.slave_cb.araddr;
+            tr.arid    = vif.slave_cb.arid;
+            tr.arlen   = vif.slave_cb.arlen;
+            tr.arburst = vif.slave_cb.arburst;
 
             `uvm_info(get_type_name(),
                       $sformatf(
@@ -171,35 +171,35 @@ class axi4_rd_monitor extends uvm_monitor;
                 if (!(vif.rvalid && vif.rready)) // doi handshake 
                     continue;
 
-                tr.rdata.push_back(vif.rdata);
-                tr.rresp = vif.rresp;
-                tr.rid   = vif.rid;
+                tr.rdata.push_back(vif.slave_cb.rdata);
+                tr.rresp = vif.slave_cb.rresp;
+                tr.rid   = vif.slave_cb.rid;
 
                 `uvm_info(get_type_name(),
                           $sformatf(
                           "R beat[%0d] : DATA=0x%0h LAST=%0b RESP=%0b ID=0x%0h",
                           tr.rdata.size()-1,
-                          vif.rdata,
-                          vif.rlast,
-                          vif.rresp,
-                          vif.rid),
+                          vif.slave_cb.rdata,
+                          vif.slave_cb.rlast,
+                          vif.slave_cb.rresp,
+                          vif.slave_cb.rid),
                           UVM_HIGH)
 
                 //----------------------------------------------------------
                 // RID check
                 //----------------------------------------------------------
-                if (vif.rid != tr.arid) begin
+                if (vif.slave_cb.rid != tr.arid) begin
                     `uvm_error(get_type_name(),
                                $sformatf(
                                "RID mismatch: RID=0x%0h ARID=0x%0h",
-                               vif.rid,
+                               vif.slave_cb.rid,
                                tr.arid))
                 end
 
                 //----------------------------------------------------------
                 // Early RLAST
                 //----------------------------------------------------------
-                if (vif.rlast &&
+                if (vif.slave_cb.rlast &&
                     (tr.rdata.size() != expected_beats)) begin
 
                     `uvm_error(get_type_name(),
