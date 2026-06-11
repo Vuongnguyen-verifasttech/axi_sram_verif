@@ -68,15 +68,16 @@ class axi4_scoreboard extends uvm_scoreboard;
     // =========================================================================
     virtual function void write_wr(axi4_wr_seq_item tr);
     
+        
+        logic [31:0] addr;
+
+        wr_count++;
         `uvm_info("SB_DBG",
         $sformatf("@%0t Scoreboard AWID=0x%0h BID=0x%0h",
                   $time,
                   tr.awid,
                   tr.bid),
         UVM_NONE)
-        logic [31:0] addr;
-
-        wr_count++;
 
         //----------------------------------------------------------------------
         // Beat count check
