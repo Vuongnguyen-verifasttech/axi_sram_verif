@@ -2,87 +2,322 @@
 
 // =============================================================================
 // axi4_scoreboard.sv
-// Scoreboard so sánh transaction thực tế với golden memory model
+//
+// Scoreboard cho m_vlsi_axi4_sram
+//
+// Chức năng:
+//   - Shadow memory model
+//   - Check write response
+//   - Check read response
+//   - Check ID propagation
+//   - Compare read data với memory model
+//
+// Lưu ý:
+//   - Match DUT implementation hiện tại
+//   - Không implement AXI4 WRAP chuẩn
+//   - BRESP/RRESP luôn kỳ vọng = OKAY (2'b00)
 // =============================================================================
 
 class axi4_scoreboard extends uvm_scoreboard;
 
-    // =====================================================================
-    // Analysis Export (kết nối từ agent monitor)
-    // =====================================================================
-    uvm_analysis_imp #(axi4_transaction, axi4_scoreboard) analysis_export;
+    // =========================================================================
+    // Analysis imports
+    // =========================================================================
+    `uvm_analysis_imp_decl(_wr)
+    `uvm_analysis_imp_decl(_rd)
 
-    // =====================================================================
-    // Golden Model
-    // =====================================================================
-    memory_model mem_model;
+    uvm_analysis_imp_wr #(axi4_wr_seq_item, axi4_scoreboard) ae_wr;
+    uvm_analysis_imp_rd #(axi4_rd_seq_item, axi4_scoreboard) ae_rd;
 
-    // =====================================================================
-    // UVM Automation
-    // =====================================================================
+    // =========================================================================
+    // Shadow memory
+    // word address = byte_addr >> 2
+    // =========================================================================
+    logic [31:0] shadow_mem [logic [31:0]];
+
+    // =========================================================================
+    // Statistics
+    // =========================================================================
+    int unsigned wr_count;
+    int unsigned rd_count;
+
+    int unsigned rd_mismatch;
+    int unsigned resp_error;
+    int unsigned id_error;
+    int unsigned beat_error;
+
+    // =========================================================================
+    // UVM
+    // =========================================================================
     `uvm_component_utils(axi4_scoreboard)
 
-    // Constructor
-    function new(string name = "axi4_scoreboard", uvm_component parent = null);
+    function new(string name = "axi4_scoreboard",
+                 uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
-    // =====================================================================
-    // Build Phase
-    // =====================================================================
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
-        analysis_export = new("analysis_export", this);
-        mem_model = memory_model::type_id::create("mem_model", this);
+
+        ae_wr = new("ae_wr", this);
+        ae_rd = new("ae_rd", this);
     endfunction
 
-    // =====================================================================
-    // Connect Phase (sẽ connect từ env)
-    // =====================================================================
-    virtual function void connect_phase(uvm_phase phase);
-        super.connect_phase(phase);
-        // Kết nối sẽ được thực hiện trong axi4_env.sv
-    endfunction
+    // =========================================================================
+    // Write path
+    // =========================================================================
+    virtual function void write_wr(axi4_wr_seq_item tr);
 
-    // =====================================================================
-    // Write method - Nhận transaction từ monitor
-    // =====================================================================
-    virtual function void write(axi4_transaction tr);
-        if (tr == null) begin
-            `uvm_error(get_type_name(), "Received null transaction")
-            return;
+        logic [31:0] addr;
+
+        wr_count++;
+
+        //----------------------------------------------------------------------
+        // Beat count check
+        //----------------------------------------------------------------------
+        if (tr.wdata.size() != (tr.awlen + 1)) begin
+            `uvm_error("SB_WR_BEAT",
+                $sformatf("Beat mismatch: got=%0d expected=%0d",
+                          tr.wdata.size(),
+                          tr.awlen + 1))
+            beat_error++;
         end
 
-        `uvm_info(get_type_name(), $sformatf("Received transaction: %s", tr.convert2string()), UVM_MEDIUM)
+        //----------------------------------------------------------------------
+        // BRESP check
+        //----------------------------------------------------------------------
+        
+        // Do đang mặc định OKLA nên nếu kh thì báo lỗi --> update sau 
+        if (tr.bresp !== 2'b00) begin
+            `uvm_error("SB_BRESP",
+                $sformatf("Unexpected BRESP=%0b AWADDR=0x%0h",
+                          tr.bresp,
+                          tr.awaddr))
+            resp_error++;
+        end
 
-        if (tr.is_write) begin
-            // WRITE: Update golden memory
-            foreach (tr.data[i]) begin
-                bit [31:0] addr = tr.awaddr + (i * 4);   // 32-bit word increment
-                mem_model.write(addr, tr.data[i]);
-            end
-        end else begin
-            // READ: Compare with golden memory
-            foreach (tr.data[i]) begin
-                bit [31:0] addr = tr.araddr + (i * 4);
-                if (!mem_model.compare(addr, tr.data[i], "READ")) begin
-                    `uvm_error(get_type_name(), $sformatf("READ mismatch at addr=0x%0h", addr))
+        //----------------------------------------------------------------------
+        // BID check
+        //----------------------------------------------------------------------
+
+        // Check xem  AWID có dc preserve đến tới BID hay không 
+        if (tr.bid !== tr.awid) begin
+            `uvm_error("SB_BID",
+                $sformatf("BID mismatch: expected=0x%0h got=0x%0h",
+                          tr.awid,
+                          tr.bid))
+            id_error++;
+        end
+
+        //----------------------------------------------------------------------
+        // Update shadow memory
+        //----------------------------------------------------------------------
+        addr = tr.awaddr;
+
+        foreach (tr.wdata[i]) begin
+
+            shadow_mem[addr >> 2] = tr.wdata[i];
+
+            `uvm_info("SB_WR",
+                $sformatf("ShadowMem WR : ADDR=0x%0h DATA=0x%0h",
+                          addr,
+                          tr.wdata[i]),
+                UVM_HIGH)
+
+            case (tr.awburst)
+
+                // FIXED
+                2'b00:
+                    addr = tr.awaddr;
+
+                // INCR
+                2'b01:
+                    addr = addr + 4;
+
+                // Match DUT implementation
+                2'b10:
+                    addr = (addr + 4) & ~(32'h3);
+
+                default:
+                    addr = addr + 4;
+
+            endcase
+
+        end
+
+        `uvm_info("SB_WR",
+            $sformatf("[%0d] WRITE OK : AWADDR=0x%0h BEATS=%0d",
+                      wr_count,
+                      tr.awaddr,
+                      tr.wdata.size()),
+            UVM_MEDIUM)
+
+    endfunction
+
+    // =========================================================================
+    // Read path
+    // =========================================================================
+    virtual function void write_rd(axi4_rd_seq_item tr);
+
+        logic [31:0] addr;
+        logic [31:0] expected;
+        logic [31:0] word_addr;
+
+        rd_count++;
+
+        //----------------------------------------------------------------------
+        // Beat count check
+        //----------------------------------------------------------------------
+        if (tr.rdata.size() != (tr.arlen + 1)) begin
+            `uvm_error("SB_RD_BEAT",
+                $sformatf("Beat mismatch: got=%0d expected=%0d",
+                          tr.rdata.size(),
+                          tr.arlen + 1))
+            beat_error++;
+        end
+
+        //----------------------------------------------------------------------
+        // RRESP check
+        //----------------------------------------------------------------------
+        if (tr.rresp !== 2'b00) begin
+            `uvm_error("SB_RRESP",
+                $sformatf("Unexpected RRESP=%0b ARADDR=0x%0h",
+                          tr.rresp,
+                          tr.araddr))
+            resp_error++;
+        end
+
+        //----------------------------------------------------------------------
+        // RID check
+        //----------------------------------------------------------------------
+        if (tr.rid !== tr.arid) begin
+            `uvm_error("SB_RID",
+                $sformatf("RID mismatch: expected=0x%0h got=0x%0h",
+                          tr.arid,
+                          tr.rid))
+            id_error++;
+        end
+
+        //----------------------------------------------------------------------
+        // Compare data
+        //----------------------------------------------------------------------
+        addr = tr.araddr;
+
+        foreach (tr.rdata[i]) begin
+
+            word_addr = addr >> 2;
+
+            if (shadow_mem.exists(word_addr)) begin
+
+                expected = shadow_mem[word_addr];
+
+                if (tr.rdata[i] !== expected) begin
+
+                    `uvm_error("SB_DATA",
+                        $sformatf(
+                        "Beat[%0d] ADDR=0x%0h EXP=0x%0h GOT=0x%0h",
+                        i,
+                        addr,
+                        expected,
+                        tr.rdata[i]))
+
+                    rd_mismatch++;
+
                 end
+                else begin
+
+                    `uvm_info("SB_RD",
+                        $sformatf(
+                        "Beat[%0d] OK ADDR=0x%0h DATA=0x%0h",
+                        i,
+                        addr,
+                        tr.rdata[i]),
+                        UVM_HIGH)
+
+                end
+
             end
+            else begin
+
+                `uvm_info("SB_RD",
+                    $sformatf(
+                    "Beat[%0d] ADDR=0x%0h DATA=0x%0h (UNINITIALIZED)",
+                    i,
+                    addr,
+                    tr.rdata[i]),
+                    UVM_MEDIUM)
+
+            end
+
+            case (tr.arburst)
+
+                // FIXED
+                2'b00:
+                    addr = tr.araddr;
+
+                // INCR
+                2'b01:
+                    addr = addr + 4;
+
+                // Match DUT implementation
+                2'b10:
+                    addr = (addr + 4) & ~(32'h3);
+
+                default:
+                    addr = addr + 4;
+
+            endcase
+
         end
 
-        // Check response (always OKAY for this DUT)
-        if (tr.resp != 2'b00) begin
-            `uvm_error(get_type_name(), $sformatf("Unexpected response 0x%0h", tr.resp))
-        end
+        `uvm_info("SB_RD",
+            $sformatf("[%0d] READ OK : ARADDR=0x%0h BEATS=%0d",
+                      rd_count,
+                      tr.araddr,
+                      tr.rdata.size()),
+            UVM_MEDIUM)
+
     endfunction
 
-    // =====================================================================
-    // Report Phase (summary)
-    // =====================================================================
+    // =========================================================================
+    // Report
+    // =========================================================================
     virtual function void report_phase(uvm_phase phase);
-        super.report_phase(phase);
-        `uvm_info(get_type_name(), $sformatf("Scoreboard finished. Memory status: %s", mem_model.convert2string()), UVM_LOW)
+
+        `uvm_info("SB_REPORT",
+            $sformatf(
+            "\n==================================================\n"
+            " Scoreboard Summary\n"
+            "==================================================\n"
+            " Writes       : %0d\n"
+            " Reads        : %0d\n"
+            " Data Errors  : %0d\n"
+            " Resp Errors  : %0d\n"
+            " ID Errors    : %0d\n"
+            " Beat Errors  : %0d\n"
+            "==================================================",
+            wr_count,
+            rd_count,
+            rd_mismatch,
+            resp_error,
+            id_error,
+            beat_error),
+            UVM_NONE)
+
+        if ((rd_mismatch == 0) &&
+            (resp_error == 0) &&
+            (id_error   == 0) &&
+            (beat_error == 0))
+        begin
+            `uvm_info("SB_REPORT",
+                      "*** ALL CHECKS PASSED ***",
+                      UVM_NONE)
+        end
+        else begin
+            `uvm_error("SB_REPORT",
+                       "*** SCOREBOARD FAIL ***")
+        end
+
     endfunction
 
-endclass : axi4_scoreboard
+endclass

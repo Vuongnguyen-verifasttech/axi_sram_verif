@@ -2,12 +2,10 @@
 
 // =============================================================================
 // axi4_base_seq.sv
-// Base sequence - Chứa các hành vi cơ bản cho tất cả sequence
+// Base sequence - Spawn write and read sequences on virtual sequencer
 // =============================================================================
 
-import axi4_agent_pkg::*;
-
-class axi4_base_seq extends uvm_sequence #(axi4_transaction);
+class axi4_base_seq extends uvm_sequence;
 
     `uvm_object_utils(axi4_base_seq)
 
@@ -16,80 +14,82 @@ class axi4_base_seq extends uvm_sequence #(axi4_transaction);
         super.new(name);
     endfunction
 
-    // =====================================================================
+    // =========================================================================
+    // Virtual sequencer reference
+    // =========================================================================
+    axi4_virtual_seqr vseqr;
+
+    // =========================================================================
     // Main body task
-    // =====================================================================
+    // =========================================================================
     virtual task body();
         `uvm_info(get_type_name(), "Starting axi4_base_seq", UVM_LOW)
 
-        // Step 1: Reset
+        // Lấy virtual sequencer từ sequencer hiện tại
+        if (!$cast(vseqr, m_sequencer)) begin
+            `uvm_error(get_type_name(), "Cannot cast m_sequencer to axi4_virtual_seqr")
+            return;
+        end
+
+        // Reset
         do_reset();
 
-        // Step 2: Một số transaction cơ bản để test env + scoreboard
-        repeat(3) begin
-            single_write();
-        end
+        // Write sequences
+        fork
+            repeat(2) run_single_write();
+        join
 
-        repeat(3) begin
-            single_read();
-        end
+        // Read sequences
+        fork
+            repeat(2) run_single_read();
+        join
 
-        // Step 3: Write then Read same address (data integrity check)
+        // Write then read integrity test
         write_read_integrity_test();
 
         `uvm_info(get_type_name(), "axi4_base_seq completed", UVM_LOW)
     endtask
 
-    // =====================================================================
+    // =========================================================================
     // Utility tasks
-    // =====================================================================
+    // =========================================================================
     virtual task do_reset();
         `uvm_info(get_type_name(), "Applying reset sequence", UVM_MEDIUM)
-        // Hiện tại reset được xử lý bởi clk_rst_gen, sequence chỉ chờ
         #100ns;
     endtask
 
-    virtual task single_write();
-        axi4_transaction tr = axi4_transaction::type_id::create("tr_write");
+    virtual task run_single_write();
+        axi4_single_wr_seq seq;
+        seq = axi4_single_wr_seq::type_id::create("seq");
         
-        start_item(tr);
-        assert(tr.randomize() with {
-            is_write == 1;
-            len == 0;           // single beat
-            burst == 2'b01;     // INCR
-        });
-        finish_item(tr);
+        seq.start(vseqr.wr_seqr);
     endtask
 
-    virtual task single_read();
-        axi4_transaction tr = axi4_transaction::type_id::create("tr_read");
+    virtual task run_single_read();
+        axi4_single_rd_seq seq;
+        seq = axi4_single_rd_seq::type_id::create("seq");
         
-        start_item(tr);
-        assert(tr.randomize() with {
-            is_write == 0;
-            len == 0;
-            burst == 2'b01;
-        });
-        finish_item(tr);
+        seq.start(vseqr.rd_seqr);
     endtask
 
     virtual task write_read_integrity_test();
-        axi4_transaction tr_wr = axi4_transaction::type_id::create("tr_wr");
-        axi4_transaction tr_rd = axi4_transaction::type_id::create("tr_rd");
-        
-        // Write
-        start_item(tr_wr);
-        assert(tr_wr.randomize() with { is_write == 1; len == 0; });
-        finish_item(tr_wr);
+        axi4_wr_seq_item wr_item;
+        axi4_rd_seq_item rd_item;
 
-        // Read same address
-        start_item(tr_rd);
-        assert(tr_rd.randomize() with {
-            is_write == 0;
-            len == 0;
-            araddr == tr_wr.awaddr;
-        });
-        finish_item(tr_rd);
+        // Write item
+        wr_item = axi4_wr_seq_item::type_id::create("wr_item");
+        if (!wr_item.randomize()) begin
+            `uvm_error(get_type_name(), "Failed to randomize wr_item")
+        end
+
+        // Read item  
+        rd_item = axi4_rd_seq_item::type_id::create("rd_item");
+        if (!rd_item.randomize() with { araddr == wr_item.awaddr; }) begin
+            `uvm_error(get_type_name(), "Failed to randomize rd_item")
+        end
+
+        `uvm_info(get_type_name(), "Write-Read integrity test: WR_ADDR=0x%0h RD_ADDR=0x%0h", 
+                  wr_item.awaddr, rd_item.araddr, UVM_MEDIUM)
     endtask
 
 endclass : axi4_base_seq

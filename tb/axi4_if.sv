@@ -1,79 +1,155 @@
 `timescale 1ns/1ps
 
+// =============================================================================
+// axi4_if.sv
+// AXI4 Interface definition
+// Gồm clocking blocks để đảm bảo sample/drive đúng clock domain
+// Modports: master (driver dùng), slave (monitor dùng)
+// =============================================================================
+
 interface axi4_if #(
-    parameter PARA_ADDR_WD = 32,
-    parameter PARA_DATA_WD = 32,
-    parameter PARA_ID_WD   = 4,
-    parameter PARA_LEN_WD  = 8
+    parameter ADDR_WD = 32,
+    parameter DATA_WD = 32,
+    parameter ID_WD   = 4,
+    parameter LEN_WD  = 8
 ) (
     input logic i_clk,
     input logic i_rst_n
 );
 
-    // ====================== Write Address Channel ======================
-    logic [PARA_ADDR_WD-1:0] awaddr;
-    logic [PARA_ID_WD-1:0]   awid;
-    logic [PARA_LEN_WD-1:0]  awlen;
-    logic [1:0]              awburst;
-    logic                    awvalid;
-    logic                    awready;
+    // =========================================================================
+    // AW channel
+    // =========================================================================
+    logic [ADDR_WD-1:0] awaddr;
+    logic               awvalid;
+    logic               awready;
+    logic [1:0]         awburst;
+    logic [LEN_WD-1:0]  awlen;
+    logic [ID_WD-1:0]   awid;
 
-    // ====================== Write Data Channel ======================
-    logic [PARA_DATA_WD-1:0] wdata;
-    logic                    wlast;
-    logic                    wvalid;
-    logic                    wready;
+    // =========================================================================
+    // W channel
+    // =========================================================================
+    logic [DATA_WD-1:0] wdata;
+    logic               wvalid;
+    logic               wready;
+    logic               wlast;
 
-    // ====================== Write Response Channel ======================
-    logic [PARA_ID_WD-1:0] bid;
-    logic [1:0]            bresp;
-    logic                  bvalid;
-    logic                  bready;
+    // =========================================================================
+    // B channel
+    // =========================================================================
+    logic [ID_WD-1:0]   bid;
+    logic [1:0]         bresp;
+    logic               bvalid;
+    logic               bready;
 
-    // ====================== Read Address Channel ======================
-    logic [PARA_ADDR_WD-1:0] araddr;
-    logic [PARA_ID_WD-1:0]   arid;
-    logic [PARA_LEN_WD-1:0]  arlen;
-    logic [1:0]              arburst;
-    logic                    arvalid;
-    logic                    arready;
+    // =========================================================================
+    // AR channel
+    // =========================================================================
+    logic [ADDR_WD-1:0] araddr;
+    logic               arvalid;
+    logic               arready;
+    logic [1:0]         arburst;
+    logic [LEN_WD-1:0]  arlen;
+    logic [ID_WD-1:0]   arid;
 
-    // ====================== Read Data Channel ======================
-    logic [PARA_ID_WD-1:0]   rid;
-    logic [PARA_DATA_WD-1:0] rdata;
-    logic [1:0]              rresp;
-    logic                    rlast;
-    logic                    rvalid;
-    logic                    rready;
+    // =========================================================================
+    // R channel
+    // =========================================================================
+    logic [ID_WD-1:0]   rid;
+    logic [DATA_WD-1:0] rdata;
+    logic [1:0]         rresp;
+    logic               rvalid;
+    logic               rlast;
+    logic               rready;
 
-    // Modport cho Master (VIP sẽ drive)
+    // =========================================================================
+    // Master clocking block (driver perspective)
+    // Drive: output signals, sample: input signals
+    // #1 setup skew để tránh race với posedge
+    // =========================================================================
+    clocking master_cb @(posedge i_clk);
+        default input #1 output #1;
+        // AW
+        output awaddr, awvalid, awburst, awlen, awid;
+        input  awready;
+        // W
+        output wdata, wvalid, wlast;
+        input  wready;
+        // B
+        output bready;
+        input  bid, bresp, bvalid;
+        // AR
+        output araddr, arvalid, arburst, arlen, arid;
+        input  arready;
+        // R
+        output rready;
+        input  rid, rdata, rresp, rvalid, rlast;
+    endclocking
+
+    // =========================================================================
+    // Slave clocking block (monitor perspective)
+    // Monitor chỉ sample — không drive
+    // =========================================================================
+    clocking slave_cb @(posedge i_clk);
+        default input #1;
+        // AW
+        input awaddr, awvalid, awready, awburst, awlen, awid;
+        // W
+        input wdata, wvalid, wready, wlast;
+        // B
+        input bid, bresp, bvalid, bready;
+        // AR
+        input araddr, arvalid, arready, arburst, arlen, arid;
+        // R
+        input rid, rdata, rresp, rvalid, rlast, rready;
+    endclocking
+
+    // =========================================================================
+    // Modport master — dùng trong axi4_wr_driver và axi4_rd_driver
+    // =========================================================================
     modport master (
-        input  i_clk, i_rst_n,
-        output awaddr, awid, awlen, awburst, awvalid,
-        input  awready,
-        output wdata, wlast, wvalid,
-        input  wready,
-        input  bid, bresp, bvalid,
-        output bready,
-        output araddr, arid, arlen, arburst, arvalid,
-        input  arready,
-        input  rid, rdata, rresp, rlast, rvalid,
-        output rready
+        clocking master_cb,
+        input i_clk, i_rst_n
     );
 
-    // Modport cho Slave (DUT)
+    // =========================================================================
+    // Modport slave — dùng trong axi4_wr_monitor và axi4_rd_monitor
+    // =========================================================================
     modport slave (
-        input  i_clk, i_rst_n,
-        input  awaddr, awid, awlen, awburst, awvalid,
-        output awready,
-        input  wdata, wlast, wvalid,
-        output wready,
-        output bid, bresp, bvalid,
-        input  bready,
-        input  araddr, arid, arlen, arburst, arvalid,
-        output arready,
-        output rid, rdata, rresp, rlast, rvalid,
-        input  rready
+        clocking slave_cb,
+        input i_clk, i_rst_n
     );
+
+    // =========================================================================
+    // Assertions — AXI4 protocol checks
+    // =========================================================================
+
+    // AWVALID không được deassert khi đang chờ AWREADY (stability)
+    property p_awvalid_stable;
+        @(posedge i_clk) disable iff (!i_rst_n)
+        (awvalid && !awready) |=> awvalid;
+    endproperty
+    assert property (p_awvalid_stable)
+        else `uvm_error("AXI4_IF", "AWVALID deasserted before AWREADY")
+
+    // WVALID không được deassert khi đang chờ WREADY
+    property p_wvalid_stable;
+        @(posedge i_clk) disable iff (!i_rst_n)
+        (wvalid && !wready) |=> wvalid;
+    endproperty
+    assert property (p_wvalid_stable)
+        else `uvm_error("AXI4_IF", "WVALID deasserted before WREADY")
+
+    // ARVALID stability
+    property p_arvalid_stable;
+        @(posedge i_clk) disable iff (!i_rst_n)
+        (arvalid && !arready) |=> arvalid;
+    endproperty
+    assert property (p_arvalid_stable)
+        else `uvm_error("AXI4_IF", "ARVALID deasserted before ARREADY")
+
+    // WLAST phải match awlen (beat count)
+    // (checked in scoreboard — không thể check di interface vì không biết awlen ở đây)
 
 endinterface : axi4_if

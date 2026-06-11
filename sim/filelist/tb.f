@@ -1,6 +1,7 @@
 # UVM Packages (compile order rất quan trọng)
 ../env/agent/axi4_agent_pkg.sv
 ../env/axi4_env_pkg.sv
+../seq/axi4_seq_pkg.sv
 ../test/axi4_test_pkg.sv
 
 # Testbench files

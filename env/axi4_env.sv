@@ -15,8 +15,9 @@ class axi4_env extends uvm_env;
     // =====================================================================
     // Components
     // =====================================================================
-    axi4_agent      axi_agent;
-    axi4_scoreboard scoreboard;     // ← ĐÃ THÊM
+    axi4_agent           axi_agent;
+    axi4_scoreboard      scoreboard;     
+    axi4_virtual_seqr    virtual_seqr;
 
     // =====================================================================
     // UVM Automation
@@ -42,8 +43,9 @@ class axi4_env extends uvm_env;
         uvm_config_db#(axi4_agent_cfg)::set(this, "axi_agent*", "cfg", env_cfg.agent_cfg);
 
         // Tạo các component
-        axi_agent   = axi4_agent::type_id::create("axi_agent", this);
-        scoreboard  = axi4_scoreboard::type_id::create("scoreboard", this);
+        axi_agent      = axi4_agent::type_id::create("axi_agent", this);
+        scoreboard     = axi4_scoreboard::type_id::create("scoreboard", this);
+        virtual_seqr   = axi4_virtual_seqr::type_id::create("virtual_seqr", this);
 
         `uvm_info(get_type_name(), $sformatf("Environment built successfully!\n%s", env_cfg.convert2string()), UVM_LOW)
     endfunction
@@ -54,10 +56,15 @@ class axi4_env extends uvm_env;
     virtual function void connect_phase(uvm_phase phase);
         super.connect_phase(phase);
 
-        // Kết nối monitor analysis port → scoreboard
-        axi_agent.ap.connect(scoreboard.analysis_export);
+        // Kết nối monitor analysis ports → scoreboard
+        axi_agent.ap_wr.connect(scoreboard.ae_wr);
+        axi_agent.ap_rd.connect(scoreboard.ae_rd);
 
-        `uvm_info(get_type_name(), "Environment connections completed (scoreboard connected)", UVM_LOW)
+        // Kết nối virtual sequencer → agent sequencers
+        virtual_seqr.wr_seqr = axi_agent.wr_seqr;
+        virtual_seqr.rd_seqr = axi_agent.rd_seqr;
+
+        `uvm_info(get_type_name(), "Environment connections completed (wr/rd scoreboard ports + virtual sequencer connected)", UVM_LOW)
     endfunction
 
     // =====================================================================

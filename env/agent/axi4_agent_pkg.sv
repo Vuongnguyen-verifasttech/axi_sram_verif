@@ -16,16 +16,22 @@ package axi4_agent_pkg;
     // =====================================================================
 
     // 1. Transaction class
-    `include "axi4_transaction.sv"
+    `include "axi4_rd_seq_item.sv"
+
+    `include "axi4_wr_seq_item.sv"
 
     // 2. Configuration class
     `include "axi4_agent_cfg.sv"
 
     // 3. Driver
-    `include "axi4_driver.sv"
+    `include "axi4_rd_driver.sv"
+
+    `include "axi4_wr_driver.sv"
 
     // 4. Monitor
-    `include "axi4_monitor.sv"
+    `include "axi4_rd_monitor.sv"
+
+    `include "axi4_wr_monitor.sv"
 
     // 5. Sequencer
     `include "axi4_sequencer.sv"

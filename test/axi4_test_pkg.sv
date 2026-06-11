@@ -6,9 +6,7 @@ package axi4_test_pkg;
     `include "uvm_macros.svh"
 
     import axi4_env_pkg::*;
-
-    // Include sequence trước test
-    `include "../seq/base/axi4_base_seq.sv"
+    import axi4_seq_pkg::*;
 
     // Include test
     `include "axi4_base_test.sv"

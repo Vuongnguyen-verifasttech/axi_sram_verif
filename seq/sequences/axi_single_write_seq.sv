@@ -1,51 +1,38 @@
-//==============================================================================
-// File          : axi4_write_seq.sv
-// Author        : [vnguyen-kafka]
-// Company       : [Verifast]
-// Project       : AXI4 SRAM Verification Environment
-// Description   : UVM Sequence for AXI4 Write Burst
-//                 - Generates randomized or directed write transactions
-//                 - Can be extended for specific test scenarios
-//
-// Version       : 1.0
-// Date          : 29-May-2026
-//==============================================================================
+`timescale 1ns/1ps
 
-class axi4_write_seq extends axi4_base_seq;
+class axi4_single_wr_seq extends uvm_sequence #(axi4_wr_seq_item);
 
-  `uvm_object_utils(axi4_write_seq)
+    `uvm_object_utils(axi4_single_wr_seq)
 
-  // =====================================================================
-  // Constructor
-  // =====================================================================
-  function new(string name = "axi4_write_seq");
-    super.new(name);
-  endfunction
+    int unsigned num_transactions = 10;
 
-  // =====================================================================
-  // Body task - Main stimulus
-  // =====================================================================
-  virtual task body();
-    axi4_transaction tr;
+    function new(string name="axi4_single_wr_seq");
+        super.new(name);
+    endfunction
 
-    `uvm_info(get_type_name(), "=== Starting AXI4 Write Sequence ===", UVM_LOW)
+    virtual task body();
 
-    // Tạo 1 transaction write
-    tr = axi4_transaction::type_id::create("tr_write");
+        repeat(num_transactions) begin
 
-    start_item(tr);
+            axi4_wr_seq_item tr;
 
-    // Randomize với constraint write
-    if (!tr.randomize() with {
-      is_write == 1;                    // Bắt buộc là Write
-      axlen inside {[0:15]};            // Giới hạn burst length ban đầu
-    }) begin
-      `uvm_fatal(get_type_name(), "Failed to randomize write transaction!")
-    end
+            tr = axi4_wr_seq_item::type_id::create("tr");
 
-    finish_item(tr);
+            start_item(tr);
 
-    `uvm_info(get_type_name(), $sformatf("Sent Write Transaction: %s", tr.convert2string()), UVM_MEDIUM)
-  endtask
+            if(!tr.randomize())
+                `uvm_fatal(get_type_name(),
+                           "Randomization failed")
 
-endclass : axi4_write_seq
+            finish_item(tr);
+
+            `uvm_info(get_type_name(),
+                      $sformatf("WRITE sent: %s",
+                                tr.convert2string()),
+                      UVM_MEDIUM)
+
+        end
+
+    endtask
+
+endclass

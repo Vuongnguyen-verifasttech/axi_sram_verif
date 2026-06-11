@@ -44,7 +44,7 @@ class axi4_base_test extends uvm_test;
         `uvm_info(get_type_name(), "Starting axi4_base_test", UVM_LOW)
 
         base_seq = axi4_base_seq::type_id::create("base_seq");
-        base_seq.start(env.axi_agent.sequencer);
+        base_seq.start(env.virtual_seqr);
 
         phase.drop_objection(this);
     endtask

@@ -2,74 +2,104 @@
 
 // =============================================================================
 // axi4_agent.sv
-// Top-level AXI4 Master Agent - Tổng hợp driver, monitor, sequencer
+// AXI4 Master Agent — tích hợp per-channel drivers và monitors
+//
+// Cấu trúc (active mode):
+//   wr_driver   : axi4_wr_driver  — drive AW+W+B
+//   rd_driver   : axi4_rd_driver  — drive AR+R
+//   wr_monitor  : axi4_wr_monitor — observe AW+W+B
+//   rd_monitor  : axi4_rd_monitor — observe AR+R
+//
+// Sequencer:
+//   wr_seqr : uvm_sequencer #(axi4_wr_seq_item)
+//   rd_seqr : uvm_sequencer #(axi4_rd_seq_item)
+//
+// Analysis ports (forwarded từ monitor ra env):
+//   ap_wr   → scoreboard write port
+//   ap_rd   → scoreboard read port
 // =============================================================================
 
 class axi4_agent extends uvm_agent;
 
-    // =====================================================================
-    // Component instances
-    // =====================================================================
-    axi4_agent_cfg    cfg;
-    axi4_driver       driver;
-    axi4_monitor      monitor;
-    axi4_sequencer    sequencer;
+    // =========================================================================
+    // Sub-components
+    // =========================================================================
+    axi4_wr_driver  wr_driver;
+    axi4_rd_driver  rd_driver;
+    axi4_wr_monitor wr_monitor;
+    axi4_rd_monitor rd_monitor;
 
-    // Analysis port (export từ monitor) để kết nối ra scoreboard/coverage
-    uvm_analysis_port #(axi4_transaction) ap;
+    uvm_sequencer #(axi4_wr_seq_item) wr_seqr;
+    uvm_sequencer #(axi4_rd_seq_item) rd_seqr;
 
-    // =====================================================================
-    // UVM Automation
-    // =====================================================================
+    // =========================================================================
+    // Configuration
+    // =========================================================================
+    axi4_agent_cfg cfg;
+
+    // =========================================================================
+    // Analysis ports — forward từ monitor ra ngoài
+    // =========================================================================
+    uvm_analysis_port #(axi4_wr_seq_item) ap_wr;
+    uvm_analysis_port #(axi4_rd_seq_item) ap_rd;
+
+    // =========================================================================
+    // UVM
+    // =========================================================================
     `uvm_component_utils(axi4_agent)
 
-    // Constructor
     function new(string name = "axi4_agent", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
-    // =====================================================================
-    // Build Phase - Tạo instance các component con
-    // =====================================================================
+    // =========================================================================
+    // Build Phase
+    // =========================================================================
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
 
-        // Lấy config từ config_db
-        if (!uvm_config_db#(axi4_agent_cfg)::get(this, "", "cfg", cfg))
-            `uvm_fatal("AGT_CFG", "Cannot get agent cfg from config_db")
-
-        // Luôn tạo monitor (dù active hay passive)
-        monitor = axi4_monitor::type_id::create("monitor", this);
-
-        // Nếu là Active agent → tạo driver + sequencer
-        if (cfg.is_active) begin
-            driver    = axi4_driver::type_id::create("driver", this);
-            sequencer = axi4_sequencer::type_id::create("sequencer", this);
+        // Lấy config — tạo default nếu không có
+        if (!uvm_config_db#(axi4_agent_cfg)::get(this, "", "cfg", cfg)) begin
+            `uvm_info(get_type_name(), "cfg not found, creating default", UVM_LOW)
+            cfg = axi4_agent_cfg::type_id::create("cfg");
         end
 
-        ap = new("ap", this);
+        // Forward cfg xuống cho các subcomponent
+        uvm_config_db#(axi4_agent_cfg)::set(this, "wr_driver",  "cfg", cfg);
+        uvm_config_db#(axi4_agent_cfg)::set(this, "rd_driver",  "cfg", cfg);
+        uvm_config_db#(axi4_agent_cfg)::set(this, "wr_monitor", "cfg", cfg);
+        uvm_config_db#(axi4_agent_cfg)::set(this, "rd_monitor", "cfg", cfg);
+
+        // Tạo monitor (luôn active, bất kể agent mode)
+        wr_monitor = axi4_wr_monitor::type_id::create("wr_monitor", this);
+        rd_monitor = axi4_rd_monitor::type_id::create("rd_monitor", this);
+
+        // Tạo analysis port forward
+        ap_wr = new("ap_wr", this);
+        ap_rd = new("ap_rd", this);
+
+        // Tạo driver + sequencer chỉ khi active
+        if (cfg.is_active == UVM_ACTIVE) begin
+            wr_seqr  = uvm_sequencer#(axi4_wr_seq_item)::type_id::create("wr_seqr", this);
+            rd_seqr  = uvm_sequencer#(axi4_rd_seq_item)::type_id::create("rd_seqr", this);
+            wr_driver = axi4_wr_driver::type_id::create("wr_driver", this);
+            rd_driver = axi4_rd_driver::type_id::create("rd_driver", this);
+        end
     endfunction
 
-    // =====================================================================
-    // Connect Phase - Kết nối TLM ports
-    // =====================================================================
+    // =========================================================================
+    // Connect Phase
+    // =========================================================================
     virtual function void connect_phase(uvm_phase phase);
-        super.connect_phase(phase);
-
-        // Connect monitor analysis port ra ngoài
-        monitor.ap.connect(ap);
-
-        // Nếu active thì connect sequencer ↔ driver
-        if (cfg.is_active) begin
-            driver.seq_item_port.connect(sequencer.seq_item_export);
+        // Driver ↔ Sequencer
+        if (cfg.is_active == UVM_ACTIVE) begin
+            wr_driver.seq_item_port.connect(wr_seqr.seq_item_export);
+            rd_driver.seq_item_port.connect(rd_seqr.seq_item_export);
         end
-    endfunction
 
-    // =====================================================================
-    // Helper function (dễ debug)
-    // =====================================================================
-    virtual function string convert2string();
-        return $sformatf("AXI4 Agent: is_active=%0b | cfg=%s", cfg.is_active, cfg.convert2string());
+        // Monitor analysis ports → agent's forwarding ports
+        wr_monitor.ap_wr.connect(ap_wr);
+        rd_monitor.ap_rd.connect(ap_rd);
     endfunction
 
 endclass : axi4_agent
