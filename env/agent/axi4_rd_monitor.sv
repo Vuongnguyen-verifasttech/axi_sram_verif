@@ -168,7 +168,7 @@ class axi4_rd_monitor extends uvm_monitor;
 
                 @(posedge vif.i_clk);
 
-                if (!(vif.rvalid && vif.rready)) // doi handshake 
+                if (!(vif.rready.rvalid && vif.rready.rready)) // doi handshake 
                     continue;
 
                 tr.rdata.push_back(vif.slave_cb.rdata);
@@ -212,7 +212,7 @@ class axi4_rd_monitor extends uvm_monitor;
                 //----------------------------------------------------------
                 // Last beat
                 //----------------------------------------------------------
-                if (vif.rlast)
+                if (vif.slave_cb.rlast)
                     break;
 
             end
