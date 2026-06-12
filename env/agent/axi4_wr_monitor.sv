@@ -83,8 +83,8 @@ class axi4_wr_monitor extends uvm_monitor;
             //------------------------------------------------------------------
             // AW Channel
             //------------------------------------------------------------------
-@(posedge vif.i_clk iff (vif.slave_cb.awvalid && vif.slave_cb.awready));
-                            `uvm_info("MON_AW",
+            @(vif.slave_cb iff (vif.slave_cb.awvalid && vif.slave_cb.awready));
+                `uvm_info("MON_AW",
                 $sformatf(
                 "@%0t AW handshake awid=%0h awaddr=%0h",
                 $time,
@@ -119,9 +119,10 @@ class axi4_wr_monitor extends uvm_monitor;
 
             repeat(num_beats) begin
 
-                do begin
-                    @(posedge vif.i_clk); // chờ handshake của W
-                end while (!(vif.slave_cb.wvalid && vif.slave_cb.wready));
+                            do begin
+                @(vif.slave_cb);
+                end while (!(vif.slave_cb.wvalid &&
+                            vif.slave_cb.wready));
 
                 tr.wdata.push_back(vif.slave_cb.wdata); // capture 
 
@@ -136,9 +137,10 @@ class axi4_wr_monitor extends uvm_monitor;
             //------------------------------------------------------------------
             // B Channel
             //------------------------------------------------------------------
-            do begin
-                @(posedge vif.i_clk);
-            end while (!(vif.slave_cb.bvalid && vif.slave_cb.bready));
+                    do begin
+            @(vif.slave_cb);
+        end while (!(vif.slave_cb.bvalid &&
+                    vif.slave_cb.bready));
                             `uvm_info("MON_B",
             $sformatf(
             "@%0t bvalid=%0b bready=%0b bid=%0h",
