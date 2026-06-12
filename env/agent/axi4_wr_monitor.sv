@@ -123,6 +123,11 @@ class axi4_wr_monitor extends uvm_monitor;
                 @(vif.slave_cb);
                 end while (!(vif.slave_cb.wvalid &&
                             vif.slave_cb.wready));
+                                `uvm_info("MON_W",
+      $sformatf("@%0t beat=%0d",
+      $time,
+      tr.wdata.size()),
+      UVM_NONE)
 
                 tr.wdata.push_back(vif.slave_cb.wdata); // capture 
 
