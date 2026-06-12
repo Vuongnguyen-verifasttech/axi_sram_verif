@@ -23,14 +23,14 @@ package axi4_seq_pkg;
     // =====================================================================
    
 
-    `include "../seq/sequences/axi_single_write_seq.sv"
+    `include "../seq/sequences/axi4_single_write_seq.sv"
     //`include "sequences/axi_incr_burst_seq.sv"
    // `include "sequences/axi_wrap_burst_seq.sv"
 
     // =====================================================================
     // Specific Read Sequences
     // =====================================================================
-    `include "../seq/sequences/axi_single_read_seq.sv"
+    `include "../seq/sequences/axi4_single_read_seq.sv"
     `include "../seq/sequences/axi4_wr_rd_integrity_seq.sv"
     `include "../seq/base/axi4_base_seq.sv"
 
