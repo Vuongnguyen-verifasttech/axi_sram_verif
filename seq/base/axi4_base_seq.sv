@@ -34,16 +34,11 @@ class axi4_base_seq extends uvm_sequence;
         // Reset
         do_reset();
 
-        // Write sequences
-        fork
-            repeat(2) run_single_write();
-        join
+        axi4_wr_rd_integrity_seq integrity_seq;
 
-        // Read sequences
-        fork
-            repeat(2) run_single_read();
-        join
+    integrity_seq =axi4_wr_rd_integrity_seq::type_id::create("integrity_seq");
 
+    integrity_seq.start(vseqr);
         // Write then read integrity test
       //  write_read_integrity_test();
 

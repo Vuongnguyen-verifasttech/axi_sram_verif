@@ -4,7 +4,7 @@ class axi4_single_rd_seq extends uvm_sequence #(axi4_rd_seq_item);
 
     `uvm_object_utils(axi4_single_rd_seq)
 
-    int unsigned num_transactions = 10;
+    axi4_rd_seq_item req;
 
     function new(string name="axi4_single_rd_seq");
         super.new(name);
@@ -12,26 +12,22 @@ class axi4_single_rd_seq extends uvm_sequence #(axi4_rd_seq_item);
 
     virtual task body();
 
-        repeat(num_transactions) begin
+        if(req == null)
+        begin
+            req = axi4_rd_seq_item::type_id::create("req");
 
-            axi4_rd_seq_item tr;
-
-            tr = axi4_rd_seq_item::type_id::create("tr");
-
-            start_item(tr);
-
-            if(!tr.randomize())
+            if(!req.randomize())
                 `uvm_fatal(get_type_name(),
                            "Randomization failed")
-
-            finish_item(tr);
-
-            `uvm_info(get_type_name(),
-                      $sformatf("READ sent: %s",
-                                tr.convert2string()),
-                      UVM_MEDIUM)
-
         end
+
+        start_item(req);
+        finish_item(req);
+
+        `uvm_info(get_type_name(),
+                  $sformatf("READ sent: %s",
+                            req.convert2string()),
+                  UVM_MEDIUM)
 
     endtask
 
