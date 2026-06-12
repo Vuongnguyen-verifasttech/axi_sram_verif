@@ -117,35 +117,35 @@ class axi4_wr_monitor extends uvm_monitor;
             //------------------------------------------------------------------
             tr.wdata.delete();
 
-            repeat(num_beats) begin
+             repeat(num_beats) begin
 
-                            do begin
-                @(vif.slave_cb);
-                end while (!(vif.slave_cb.wvalid &&
-                            vif.slave_cb.wready));
-                                `uvm_info("MON_W",
-      $sformatf("@%0t beat=%0d",
-      $time,
-      tr.wdata.size()),
-      UVM_NONE)
+                do begin
+                    @(posedge vif.i_clk);
+                end while (!(vif.slave_cb.wvalid && vif.slave_cb.wready));
 
-                tr.wdata.push_back(vif.slave_cb.wdata); // capture 
+                tr.wdata.push_back(vif.slave_cb.wdata);
 
-                `uvm_info(get_type_name(),
-                          $sformatf(
-                            "W beat[%0d]: WDATA=0x%0h",
-                            tr.wdata.size()-1,
-                            vif.slave_cb.wdata),
-                          UVM_HIGH)
+                `uvm_info("MON_W",
+                    $sformatf(
+                        "@%0t beat=%0d wlast=%0b",
+                        $time,
+                        tr.wdata.size()-1,
+                        vif.slave_cb.wlast),
+                    UVM_NONE)
+
             end
 
             //------------------------------------------------------------------
             // B Channel
             //------------------------------------------------------------------
-                    do begin
-            @(vif.slave_cb);
-        end while (!(vif.slave_cb.bvalid &&
-                    vif.slave_cb.bready));
+              
+`uvm_info("MON_B_WAIT",
+    $sformatf("@%0t start waiting B", $time),
+    UVM_NONE)
+
+do begin
+    @(posedge vif.i_clk);
+end while (!(vif.slave_cb.bvalid && vif.slave_cb.bready));
                             `uvm_info("MON_B",
             $sformatf(
             "@%0t bvalid=%0b bready=%0b bid=%0h",
