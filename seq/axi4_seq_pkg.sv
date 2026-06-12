@@ -31,7 +31,7 @@ package axi4_seq_pkg;
     // Specific Read Sequences
     // =====================================================================
     `include "../seq/sequences/axi_single_read_seq.sv"
-    `include "../seq/sequences/axi_wr_rd_integrity_seq.sv"
+    `include "../seq/sequences/axi4_wr_rd_integrity_seq.sv"
     `include "../seq/base/axi4_base_seq.sv"
 
     // =====================================================================
