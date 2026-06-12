@@ -23,6 +23,7 @@ class axi4_base_seq extends uvm_sequence;
     // Main body task
     // =========================================================================
     virtual task body();
+          axi4_wr_rd_integrity_seq integrity_seq;
         `uvm_info(get_type_name(), "Starting axi4_base_seq", UVM_LOW)
 
         // Lấy virtual sequencer từ sequencer hiện tại
@@ -34,7 +35,7 @@ class axi4_base_seq extends uvm_sequence;
         // Reset
         do_reset();
 
-        axi4_wr_rd_integrity_seq integrity_seq;
+      
 
     integrity_seq =axi4_wr_rd_integrity_seq::type_id::create("integrity_seq");
 
