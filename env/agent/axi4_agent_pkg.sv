@@ -34,7 +34,7 @@ package axi4_agent_pkg;
     `include "axi4_wr_monitor.sv"
 
     // 5. Sequencer
-    //`include "axi4_sequencer.sv"
+    `include "axi4_sequencer.sv"
 
     // 6. Agent top-level
     `include "axi4_agent.sv"
