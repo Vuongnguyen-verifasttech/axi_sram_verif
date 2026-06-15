@@ -119,7 +119,7 @@ class axi4_rd_monitor extends uvm_monitor;
         forever begin
 @(posedge vif.i_clk iff (vif.slave_cb.arvalid && vif.slave_cb.arready));
 
-            tr = axi4_rd_seq_item::type_id::create("tr_ar");
+            tr = axi4_rd_seq_item::type_id::create("tr");
 
             // Capture thông tin requesst
 
