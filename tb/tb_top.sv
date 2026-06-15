@@ -62,8 +62,14 @@ module tb_top;
     end
 
     // Đọc liên tục / tổ hợp để tránh lệch cycle khi mô phỏng cùng DUT
-    assign sram_rdata = (sram_oe) ? sram_mem[sram_addr[11:2]] : 32'h0;
+    //assign sram_rdata = (sram_oe) ? sram_mem[sram_addr[11:2]] : 32'h0;
 
+    always_ff @(posedge clk) begin
+    if (sram_oe)
+        sram_rdata <= sram_mem[sram_addr[11:2]];
+    end
+
+    
     
     // =========================================================================
     // DUT instantiation
