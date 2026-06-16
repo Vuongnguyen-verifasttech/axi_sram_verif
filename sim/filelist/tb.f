@@ -7,6 +7,6 @@
 ../test/axi4_test_pkg.sv
 
 # Testbench files
-../tb/clk_rst_gen.sv
+//../tb/clk_rst_gen.sv
 ../tb/axi4_if.sv
 ../tb/tb_top.sv
