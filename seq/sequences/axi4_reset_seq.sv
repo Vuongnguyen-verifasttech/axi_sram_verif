@@ -1,12 +1,10 @@
 `timescale 1ns/1ps
 
-class axi4_reset_seq extends axi4_base_seq;
+class axi4_reset_seq extends uvm_sequence;
 
     `uvm_object_utils(axi4_reset_seq)
 
-    //--------------------------------------------------------------------------
-    // Random reset width
-    //--------------------------------------------------------------------------
+    axi4_virtual_seqr vseqr;
 
     rand int unsigned reset_cycles;
 
@@ -14,59 +12,52 @@ class axi4_reset_seq extends axi4_base_seq;
         reset_cycles inside {[5:20]};
     }
 
-    //--------------------------------------------------------------------------
-    // Constructor
-    //--------------------------------------------------------------------------
-
     function new(string name = "axi4_reset_seq");
         super.new(name);
     endfunction
 
-    //--------------------------------------------------------------------------
-    // Body
-    //--------------------------------------------------------------------------
-
     virtual task body();
 
-        super.body();
+        if (!$cast(vseqr, m_sequencer)) begin
+            `uvm_fatal(get_type_name(),
+                       "Cannot cast m_sequencer to axi4_virtual_seqr")
+        end
 
         if (!randomize()) begin
-            `uvm_warning(get_type_name(),
-                         "Randomization failed, use reset_cycles = 10")
             reset_cycles = 10;
         end
 
         `uvm_info(get_type_name(),
-                  $sformatf("Applying reset for %0d cycles",
+                  $sformatf("Apply reset for %0d cycles",
                             reset_cycles),
                   UVM_MEDIUM)
 
-        //------------------------------------------------------
+        //-----------------------------------------
         // Assert reset
-        //------------------------------------------------------
+        //-----------------------------------------
 
         vseqr.vif.i_rst_n <= 1'b0;
 
-        repeat (reset_cycles)
+        repeat(reset_cycles)
             @(posedge vseqr.vif.i_clk);
 
-        //------------------------------------------------------
+        //-----------------------------------------
         // Release reset
-        //------------------------------------------------------
+        //-----------------------------------------
 
         vseqr.vif.i_rst_n <= 1'b1;
 
-        //------------------------------------------------------
-        // Wait DUT settle
-        //------------------------------------------------------
+        //-----------------------------------------
+        // Settle
+        //-----------------------------------------
 
-        repeat (5)
+        repeat(5)
             @(posedge vseqr.vif.i_clk);
 
         `uvm_info(get_type_name(),
-                  "Reset sequence completed",
+                  "Reset completed",
                   UVM_MEDIUM)
 
     endtask
 
-endclass : axi4_reset_seq
+endclass

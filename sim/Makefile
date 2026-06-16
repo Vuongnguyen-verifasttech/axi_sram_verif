@@ -3,7 +3,7 @@
 # =============================================================================
 
 TOP        ?= tb_top
-TESTNAME   ?= axi4_base_test
+TESTNAME   ?= axi4_reset_sanity_test
 
 RTL_F      = filelist/rtl.f
 TB_F       = filelist/tb.f
