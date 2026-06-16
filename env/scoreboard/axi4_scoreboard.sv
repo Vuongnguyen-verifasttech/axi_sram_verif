@@ -169,7 +169,7 @@ class axi4_scoreboard extends uvm_scoreboard;
         logic [31:0] addr;
         logic [31:0] expected;
         logic [31:0] word_addr;
-        string table;
+        string result_table;
         string result_str;
         
 
@@ -213,7 +213,7 @@ class axi4_scoreboard extends uvm_scoreboard;
         //---------------------------------------------------------------------
           
 
-            table = $sformatf(
+            result_table = $sformatf(
             "\n===============================================================\n\
             READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n\
             ===============================================================\n\
@@ -241,7 +241,7 @@ class axi4_scoreboard extends uvm_scoreboard;
                     rd_mismatch++;
                 end
 
-               table = {table,
+               result_table = {result_table,
 $sformatf("%0d    0x%08h  0x%08h  0x%08h  %s\n",
           i,
           addr,
@@ -266,12 +266,12 @@ $sformatf("%0d    0x%08h  0x%08h  0x%08h  %s\n",
 
             end
 
-            table = {
-                table,
+            result_table = {
+                result_table,
                 "===============================================================\n"
             };
 
-            `uvm_info("SB_RD", table, UVM_NONE)
+            `uvm_info("SB_RD", result_table, UVM_NONE)
 
         `uvm_info("SB_RD",
             $sformatf("[%0d] READ DONE : ARADDR=0x%0h BEATS=%0d",
