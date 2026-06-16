@@ -213,15 +213,14 @@ class axi4_scoreboard extends uvm_scoreboard;
         //---------------------------------------------------------------------
           
 
-            result_table = $sformatf(
-            "\n===============================================================\n" +
-            "READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n" +
-            "===============================================================\n" +
-            "Beat  Addr        Expected    Actual      Result\n" +
-            "----  ----------  ----------  ----------  ------\n",
-            tr.arid,
-            tr.araddr,
-            tr.arlen);
+            result_table = {
+            "\n===============================================================\n",
+            $sformatf("READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n",
+                      tr.arid, tr.araddr, tr.arlen),
+            "===============================================================\n",
+            "Beat  Addr        Expected    Actual      Result\n",
+            "----  ----------  ----------  ----------  ------\n"
+            };
 
             addr = tr.araddr;
 
@@ -289,16 +288,7 @@ $sformatf("%4d  0x%08h  0x%08h  0x%08h  %s\n",
         string msg;
 
         msg = $sformatf(
-            "\n==================================================\n" +
-            " Scoreboard Summary\n" +
-            "==================================================\n" +
-            " Writes       : %0d\n" +
-            " Reads        : %0d\n" +
-            " Data Errors  : %0d\n" +
-            " Resp Errors  : %0d\n" +
-            " ID Errors    : %0d\n" +
-            " Beat Errors  : %0d\n" +
-            "==================================================",
+            "\n==================================================\n Scoreboard Summary\n==================================================\n Writes       : %0d\n Reads        : %0d\n Data Errors  : %0d\n Resp Errors  : %0d\n ID Errors    : %0d\n Beat Errors  : %0d\n==================================================",
             wr_count,
             rd_count,
             rd_mismatch,
