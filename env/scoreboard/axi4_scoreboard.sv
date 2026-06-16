@@ -170,6 +170,7 @@ class axi4_scoreboard extends uvm_scoreboard;
         logic [31:0] expected;
         logic [31:0] word_addr;
         string result_str;
+        string table;
 
         rd_count++;
 
@@ -209,70 +210,71 @@ class axi4_scoreboard extends uvm_scoreboard;
         //---------------------------------------------------------------------
         // Table Header
         //---------------------------------------------------------------------
-        `uvm_info("SB_RD",
-        $sformatf(
-        "\n===============================================================\n\
-        READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n\
-        ===============================================================\n\
-        Beat Addr        Expected    Actual      Result\n\
-        ---- ----------  ----------  ----------  ------",
-        tr.arid,
-        tr.araddr,
-        tr.arlen),
-        UVM_MEDIUM)
+          
 
-        addr = tr.araddr;
+            table = $sformatf(
+            "\n===============================================================\n\
+            READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n\
+            ===============================================================\n\
+            Beat Addr        Expected    Actual      Result\n\
+            ---- ----------  ----------  ----------  ------\n",
+            tr.arid,
+            tr.araddr,
+            tr.arlen);
 
-        //----------------------------------------------------------------------
-        // Compare data
-        //----------------------------------------------------------------------
-        foreach (tr.rdata[i]) begin
+            addr = tr.araddr;
 
-            word_addr = addr >> 2;
+            foreach (tr.rdata[i]) begin
 
-            if (shadow_mem.exists(word_addr))
-                expected = shadow_mem[word_addr];
-            else
-                expected = 'hx;
+                word_addr = addr >> 2;
 
-            if (tr.rdata[i] === expected) begin
-                result_str = "PASS";
+                if (shadow_mem.exists(word_addr))
+                    expected = shadow_mem[word_addr];
+                else
+                    expected = 32'hxxxxxxxx;
+
+                if (tr.rdata[i] === expected)
+                    result_str = "PASS";
+                else begin
+                    result_str = "FAIL";
+                    rd_mismatch++;
+                end
+
+                table = {
+                    table,
+                    $sformatf(
+                    "%-4d 0x%08h  0x%08h  0x%08h  %s\n",
+                    i,
+                    addr,
+                    expected,
+                    tr.rdata[i],
+                    result_str)
+                };
+
+                case (tr.arburst)
+
+                    2'b00:
+                        addr = tr.araddr;
+
+                    2'b01:
+                        addr = addr + 4;
+
+                    2'b10:
+                        addr = (addr + 4) & ~(32'h3);
+
+                    default:
+                        addr = addr + 4;
+
+                endcase
+
             end
-            else begin
-                result_str = "FAIL";
-                rd_mismatch++;
-            end
 
-            `uvm_info("SB_RD",
-                $sformatf(
-                "%0d    0x%08h  0x%08h  0x%08h  %s",
-                i,
-                addr,
-                expected,
-                tr.rdata[i],
-                result_str),
-                UVM_MEDIUM)
+            table = {
+                table,
+                "===============================================================\n"
+            };
 
-            case (tr.arburst)
-
-                // FIXED
-                2'b00:
-                    addr = tr.araddr;
-
-                // INCR
-                2'b01:
-                    addr = addr + 4;
-
-                // Match DUT implementation
-                2'b10:
-                    addr = (addr + 4) & ~(32'h3);
-
-                default:
-                    addr = addr + 4;
-
-            endcase
-
-        end
+            `uvm_info("SB_RD", table, UVM_NONE)
 
         `uvm_info("SB_RD",
             $sformatf("[%0d] READ DONE : ARADDR=0x%0h BEATS=%0d",
