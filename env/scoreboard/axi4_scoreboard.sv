@@ -210,79 +210,92 @@ class axi4_scoreboard extends uvm_scoreboard;
         //----------------------------------------------------------------------
         addr = tr.araddr;
 
-        foreach (tr.rdata[i]) begin
+        begin
+    string table;
+    string result_str;
 
-            word_addr = addr >> 2;
+    table = {
+        "\n",
+        "===============================================================\n",
+        $sformatf(
+        "READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n",
+        tr.arid,
+        tr.araddr,
+        tr.arlen),
+        "===============================================================\n",
+        "Beat Addr        Expected    Actual      Result\n",
+        "---- ----------  ----------  ----------  ------\n"
+    };
 
-            if (shadow_mem.exists(word_addr)) begin
+    foreach (tr.rdata[i]) begin
 
-                expected = shadow_mem[word_addr];
+        word_addr = addr >> 2;
 
-                if (tr.rdata[i] !== expected) begin
+        //----------------------------------------------------------
+        // Get expected data
+        //----------------------------------------------------------
+        if (shadow_mem.exists(word_addr))
+            expected = shadow_mem[word_addr];
+        else
+            expected = 'hx;
 
-                    `uvm_error("SB_DATA",
-                        $sformatf(
-                        "Beat[%0d] ADDR=0x%0h EXP=0x%0h GOT=0x%0h",
-                        i,
-                        addr,
-                        expected,
-                        tr.rdata[i]))
-
-                    rd_mismatch++;
-
-                end
-                else begin
-
-                    `uvm_info("SB_RD",
-                        $sformatf(
-                        "Beat[%0d] OK ADDR=0x%0h DATA=0x%0h",
-                        i,
-                        addr,
-                        tr.rdata[i]),
-                        UVM_HIGH)
-
-                end
-
-            end
-            else begin
-
-                `uvm_info("SB_RD",
-                    $sformatf(
-                    "Beat[%0d] ADDR=0x%0h DATA=0x%0h (UNINITIALIZED)",
-                    i,
-                    addr,
-                    tr.rdata[i]),
-                    UVM_MEDIUM)
-
-            end
-
-            case (tr.arburst)
-
-                // FIXED
-                2'b00:
-                    addr = tr.araddr;
-
-                // INCR
-                2'b01:
-                    addr = addr + 4;
-
-                // Match DUT implementation
-                2'b10:
-                    addr = (addr + 4) & ~(32'h3);
-
-                default:
-                    addr = addr + 4;
-
-            endcase
-
+        //----------------------------------------------------------
+        // Compare
+        //----------------------------------------------------------
+        if (tr.rdata[i] === expected) begin
+            result_str = "PASS";
+        end
+        else begin
+            result_str = "FAIL";
+            rd_mismatch++;
         end
 
-        `uvm_info("SB_RD",
-            $sformatf("[%0d] READ OK : ARADDR=0x%0h BEATS=%0d",
-                      rd_count,
-                      tr.araddr,
-                      tr.rdata.size()),
-            UVM_MEDIUM)
+        //----------------------------------------------------------
+        // Append row
+        //----------------------------------------------------------
+        table = {
+            table,
+            $sformatf(
+            "%-4d 0x%08h  0x%08h  0x%08h  %s\n",
+            i,
+            addr,
+            expected,
+            tr.rdata[i],
+            result_str)
+        };
+
+        //----------------------------------------------------------
+        // Address update
+        //----------------------------------------------------------
+        case (tr.arburst)
+
+            // FIXED
+            2'b00:
+                addr = tr.araddr;
+
+            // INCR
+            2'b01:
+                addr = addr + 4;
+
+            // Match DUT implementation
+            2'b10:
+                addr = (addr + 4) & ~(32'h3);
+
+            default:
+                addr = addr + 4;
+
+        endcase
+
+    end
+
+    //--------------------------------------------------------------
+    // Print table
+    //--------------------------------------------------------------
+    `uvm_info("SB_RD", table, UVM_MEDIUM)
+
+    end
+
+       
 
         endfunction
 
