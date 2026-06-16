@@ -13,32 +13,40 @@ import axi4_env_pkg::*;
 module tb_top;
 
     // =========================================================================
-    // Clock & Reset generation
+    // Clock generation
     // =========================================================================
+
     logic clk;
-    logic rst_n;
 
     initial clk = 1'b0;
-    always #5 clk = ~clk;   // 100 MHz
-
-    initial begin
-        rst_n = 1'b0;
-        repeat (10) @(posedge clk);
-        rst_n = 1'b1;
-    end
+    always #5 clk = ~clk;
 
     // =========================================================================
     // Interface
     // =========================================================================
+
     axi4_if #(
         .ADDR_WD(32),
         .DATA_WD(32),
         .ID_WD  (4),
         .LEN_WD (8)
-    ) axi_if (
-        .i_clk  (clk),
-        .i_rst_n(rst_n)
-    );
+    ) axi_if();
+
+    // Interface owns clock/reset
+    assign axi_if.i_clk = clk;
+
+    // =========================================================================
+    // Initial reset
+    // =========================================================================
+
+    initial begin
+        axi_if.i_rst_n = 1'b0;
+
+        repeat (10)
+            @(posedge clk);
+
+        axi_if.i_rst_n = 1'b1;
+    end
 
     // =========================================================================
     // Simple SRAM model (Behavioral - Đã sửa lỗi Race Condition)
@@ -81,8 +89,8 @@ module tb_top;
         .PARA_LEN_WD    (8),
         .PARA_FIFO_DEPTH(8)
     ) u_dut (
-        .i_clk      (clk),
-        .i_rst_n    (rst_n),
+        .i_clk (axi_if.i_clk),
+        .i_rst_n (axi_if.i_rst_n),
 
         // AW
         .i_awaddr   (axi_if.awaddr),

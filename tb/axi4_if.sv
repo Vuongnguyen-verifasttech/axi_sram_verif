@@ -14,9 +14,12 @@ interface axi4_if #(
     parameter ID_WD   = 4,
     parameter LEN_WD  = 8
 ) (
-    input logic i_clk,
-    input logic i_rst_n
+   // input logic i_clk,
+   // input logic i_rst_n
 );
+    //De cho interface so huu reset 
+    logic i_clk;
+    logic i_rst_n;
 
     // =========================================================================
     // AW channel
