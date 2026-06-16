@@ -1,4 +1,4 @@
-```systemverilog
+
 `timescale 1ns/1ps
 
 // =============================================================================
@@ -76,4 +76,4 @@ class axi4_base_seq extends uvm_sequence;
     endtask
 
 endclass : axi4_base_seq
-```
+
