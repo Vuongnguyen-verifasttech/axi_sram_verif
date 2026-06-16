@@ -169,8 +169,9 @@ class axi4_scoreboard extends uvm_scoreboard;
         logic [31:0] addr;
         logic [31:0] expected;
         logic [31:0] word_addr;
-        string result_str;
         string table;
+        string result_str;
+        
 
         rd_count++;
 
@@ -240,17 +241,13 @@ class axi4_scoreboard extends uvm_scoreboard;
                     rd_mismatch++;
                 end
 
-                table = {
-                    table,
-                    $sformatf(
-                    "%-4d 0x%08h  0x%08h  0x%08h  %s\n",
-                    i,
-                    addr,
-                    expected,
-                    tr.rdata[i],
-                    result_str)
-                };
-
+               table = {table,
+$sformatf("%0d    0x%08h  0x%08h  0x%08h  %s\n",
+          i,
+          addr,
+          expected,
+          tr.rdata[i],
+          result_str)};
                 case (tr.arburst)
 
                     2'b00:
