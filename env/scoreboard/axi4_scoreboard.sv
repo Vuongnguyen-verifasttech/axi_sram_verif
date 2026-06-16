@@ -280,6 +280,7 @@ class axi4_scoreboard extends uvm_scoreboard;
                     tr.araddr,
                     tr.rdata.size()),
             UVM_MEDIUM)
+    endfunction 
 
     // =========================================================================
     // Report
