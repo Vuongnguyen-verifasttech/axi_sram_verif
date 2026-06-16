@@ -169,7 +169,6 @@ class axi4_scoreboard extends uvm_scoreboard;
         logic [31:0] addr;
         logic [31:0] expected;
         logic [31:0] word_addr;
-         string table;
         string result_str;
 
         rd_count++;
@@ -180,8 +179,8 @@ class axi4_scoreboard extends uvm_scoreboard;
         if (tr.rdata.size() != (tr.arlen + 1)) begin
             `uvm_error("SB_RD_BEAT",
                 $sformatf("Beat mismatch: got=%0d expected=%0d",
-                          tr.rdata.size(),
-                          tr.arlen + 1))
+                        tr.rdata.size(),
+                        tr.arlen + 1))
             beat_error++;
         end
 
@@ -191,8 +190,8 @@ class axi4_scoreboard extends uvm_scoreboard;
         if (tr.rresp !== 2'b00) begin
             `uvm_error("SB_RRESP",
                 $sformatf("Unexpected RRESP=%0b ARADDR=0x%0h",
-                          tr.rresp,
-                          tr.araddr))
+                        tr.rresp,
+                        tr.araddr))
             resp_error++;
         end
 
@@ -202,98 +201,85 @@ class axi4_scoreboard extends uvm_scoreboard;
         if (tr.rid !== tr.arid) begin
             `uvm_error("SB_RID",
                 $sformatf("RID mismatch: expected=0x%0h got=0x%0h",
-                          tr.arid,
-                          tr.rid))
+                        tr.arid,
+                        tr.rid))
             id_error++;
         end
+
+        //---------------------------------------------------------------------
+        // Table Header
+        //---------------------------------------------------------------------
+        `uvm_info("SB_RD",
+        $sformatf(
+        "\n===============================================================\n\
+        READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n\
+        ===============================================================\n\
+        Beat Addr        Expected    Actual      Result\n\
+        ---- ----------  ----------  ----------  ------",
+        tr.arid,
+        tr.araddr,
+        tr.arlen),
+        UVM_MEDIUM)
+
+        addr = tr.araddr;
 
         //----------------------------------------------------------------------
         // Compare data
         //----------------------------------------------------------------------
-        addr = tr.araddr;
+        foreach (tr.rdata[i]) begin
 
+            word_addr = addr >> 2;
 
+            if (shadow_mem.exists(word_addr))
+                expected = shadow_mem[word_addr];
+            else
+                expected = 'hx;
 
-        table = {
-        "\n",
-        "===============================================================\n",
-        $sformatf(
-        "READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n",
-        tr.arid,
-        tr.araddr,
-        tr.arlen),
-        "===============================================================\n",
-        "Beat Addr        Expected    Actual      Result\n",
-        "---- ----------  ----------  ----------  ------\n"
-    };
+            if (tr.rdata[i] === expected) begin
+                result_str = "PASS";
+            end
+            else begin
+                result_str = "FAIL";
+                rd_mismatch++;
+            end
 
-    foreach (tr.rdata[i]) begin
+            `uvm_info("SB_RD",
+                $sformatf(
+                "%0d    0x%08h  0x%08h  0x%08h  %s",
+                i,
+                addr,
+                expected,
+                tr.rdata[i],
+                result_str),
+                UVM_MEDIUM)
 
-        word_addr = addr >> 2;
+            case (tr.arburst)
 
-        //----------------------------------------------------------
-        // Get expected data
-        //----------------------------------------------------------
-        if (shadow_mem.exists(word_addr))
-            expected = shadow_mem[word_addr];
-        else
-            expected = 'hx;
+                // FIXED
+                2'b00:
+                    addr = tr.araddr;
 
-        //----------------------------------------------------------
-        // Compare
-        //----------------------------------------------------------
-        if (tr.rdata[i] === expected) begin
-            result_str = "PASS";
+                // INCR
+                2'b01:
+                    addr = addr + 4;
+
+                // Match DUT implementation
+                2'b10:
+                    addr = (addr + 4) & ~(32'h3);
+
+                default:
+                    addr = addr + 4;
+
+            endcase
+
         end
-        else begin
-            result_str = "FAIL";
-            rd_mismatch++;
-        end
 
-        //----------------------------------------------------------
-        // Append row
-        //----------------------------------------------------------
-        table = {
-            table,
-            $sformatf(
-            "%-4d 0x%08h  0x%08h  0x%08h  %s\n",
-            i,
-            addr,
-            expected,
-            tr.rdata[i],
-            result_str)
-        };
-
-        //----------------------------------------------------------
-        // Address update
-        //----------------------------------------------------------
-        case (tr.arburst)
-
-            // FIXED
-            2'b00:
-                addr = tr.araddr;
-
-            // INCR
-            2'b01:
-                addr = addr + 4;
-
-            // Match DUT implementation
-            2'b10:
-                addr = (addr + 4) & ~(32'h3);
-
-            default:
-                addr = addr + 4;
-
-        endcase
-
-    end
-
-    //--------------------------------------------------------------
-    // Print table
-    //--------------------------------------------------------------
-    `uvm_info("SB_RD", table, UVM_MEDIUM)
-
-        endfunction
+        `uvm_info("SB_RD",
+            $sformatf("[%0d] READ DONE : ARADDR=0x%0h BEATS=%0d",
+                    rd_count,
+                    tr.araddr,
+                    tr.rdata.size()),
+            UVM_MEDIUM)
 
     // =========================================================================
     // Report
