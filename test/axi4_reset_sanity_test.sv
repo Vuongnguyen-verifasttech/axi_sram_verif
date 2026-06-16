@@ -1,3 +1,5 @@
+import axi4_seq_pkg::*; 
+typedef class axi4_reset_sanity_seq;
 class axi4_reset_sanity_test extends axi4_base_test;
 
     `uvm_component_utils(axi4_reset_sanity_test)
