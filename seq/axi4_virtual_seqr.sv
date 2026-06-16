@@ -10,6 +10,7 @@ class axi4_virtual_seqr extends uvm_sequencer;
     // =========================================================================
     // References đến sequencer thực tế trong agent
     // =========================================================================
+    virtual axi4_if vif; // add them de sequence reset dc
     uvm_sequencer #(axi4_wr_seq_item) wr_seqr;
     uvm_sequencer #(axi4_rd_seq_item) rd_seqr;
 

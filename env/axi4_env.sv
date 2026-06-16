@@ -16,7 +16,8 @@ class axi4_env extends uvm_env;
     // Components
     // =====================================================================
     axi4_agent           axi_agent;
-    axi4_scoreboard      scoreboard;     
+    axi4_scoreboard      scoreboard;
+    virtual axi4_if vif;     
     axi4_virtual_seqr    virtual_seqr;
 
     // =====================================================================
@@ -63,6 +64,7 @@ class axi4_env extends uvm_env;
         // Kết nối virtual sequencer → agent sequencers
         virtual_seqr.wr_seqr = axi_agent.wr_seqr;
         virtual_seqr.rd_seqr = axi_agent.rd_seqr;
+        virtual_seqr.vif = vif; 
 
         `uvm_info(get_type_name(), "Environment connections completed (wr/rd scoreboard ports + virtual sequencer connected)", UVM_LOW)
     endfunction
