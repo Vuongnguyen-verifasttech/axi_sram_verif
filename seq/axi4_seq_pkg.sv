@@ -21,7 +21,7 @@ package axi4_seq_pkg;
     // =====================================================================
     // Base Sequences (virtual tasks cho write/read)
     // =====================================================================
-   
+    `include "../seq/base/axi4_base_seq.sv"
 
     `include "../seq/sequences/axi4_single_write_seq.sv"
     //`include "sequences/axi_incr_burst_seq.sv"
@@ -32,7 +32,9 @@ package axi4_seq_pkg;
     // =====================================================================
     `include "../seq/sequences/axi4_single_read_seq.sv"
     `include "../seq/sequences/axi4_wr_rd_integrity_seq.sv"
-    `include "../seq/base/axi4_base_seq.sv"
+   
+    `include "../seq/sequences/axi4_reset_seq.sv"
+    `include "../seq/sequences/axi4_reset_sanity_seq.sv"
 
     // =====================================================================
     // Mixed Sequences
