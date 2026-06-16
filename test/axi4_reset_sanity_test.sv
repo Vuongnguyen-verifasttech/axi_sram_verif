@@ -13,8 +13,7 @@ class axi4_reset_sanity_test extends axi4_base_test;
 
         phase.raise_objection(this);
 
-        seq =
-        axi4_reset_sanity_seq::type_id::create("seq");
+        seq =axi4_reset_sanity_seq::type_id::create("seq");
 
         seq.start(env.virtual_seqr);
 
