@@ -169,6 +169,8 @@ class axi4_scoreboard extends uvm_scoreboard;
         logic [31:0] addr;
         logic [31:0] expected;
         logic [31:0] word_addr;
+         string table;
+        string result_str;
 
         rd_count++;
 
@@ -210,11 +212,9 @@ class axi4_scoreboard extends uvm_scoreboard;
         //----------------------------------------------------------------------
         addr = tr.araddr;
 
-        begin
-    string table;
-    string result_str;
 
-    table = {
+
+        table = {
         "\n",
         "===============================================================\n",
         $sformatf(
@@ -292,10 +292,6 @@ class axi4_scoreboard extends uvm_scoreboard;
     // Print table
     //--------------------------------------------------------------
     `uvm_info("SB_RD", table, UVM_MEDIUM)
-
-    end
-
-       
 
         endfunction
 
