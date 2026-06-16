@@ -214,11 +214,11 @@ class axi4_scoreboard extends uvm_scoreboard;
           
 
             result_table = $sformatf(
-            "\n===============================================================\n\
-            READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n\
-            ===============================================================\n\
-            Beat Addr        Expected    Actual      Result\n\
-            ---- ----------  ----------  ----------  ------\n",
+            "\n===============================================================\n" +
+            "READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n" +
+            "===============================================================\n" +
+            "Beat  Addr        Expected    Actual      Result\n" +
+            "----  ----------  ----------  ----------  ------\n",
             tr.arid,
             tr.araddr,
             tr.arlen);
@@ -242,7 +242,7 @@ class axi4_scoreboard extends uvm_scoreboard;
                 end
 
                result_table = {result_table,
-$sformatf("%0d    0x%08h  0x%08h  0x%08h  %s\n",
+$sformatf("%4d  0x%08h  0x%08h  0x%08h  %s\n",
           i,
           addr,
           expected,
