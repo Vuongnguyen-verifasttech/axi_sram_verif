@@ -10,5 +10,6 @@ package axi4_test_pkg;
 
     // Include test
     `include "axi4_base_test.sv"
+    `include "axi4_reset_sanity_test.sv"
 
 endpackage : axi4_test_pkg
