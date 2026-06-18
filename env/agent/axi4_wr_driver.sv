@@ -140,13 +140,27 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
         vif.master_cb.awvalid <= 1'b1;
 
         // Wait handshake : Moi clk kiem tra awready, neu awready = 0 --> tiep tuc cho, =1 --> handshake thanh cong
-            @(posedge vif.i_clk);
-            while (!vif.master_cb.awready)
+          @(posedge vif.i_clk);
+
+            while (!vif.master_cb.awready) begin
+
+                if (!vif.i_rst_n) begin
+
+                    `uvm_warning("AW_RST",
+                                "Reset detected while waiting AWREADY")
+
+                    vif.master_cb.awvalid <= 1'b0;
+                    vif.master_cb.awaddr  <= '0;
+
+                    return;
+                end
+
                 @(posedge vif.i_clk);
 
-        // Handshake completed : address trans da ket thuc --> DUT da nhan du thong tin AW 
-        vif.master_cb.awvalid <= 1'b0;
-        vif.master_cb.awaddr  <= '0;
+            end
+
+                vif.master_cb.awvalid <= 1'b0;
+                vif.master_cb.awaddr  <= '0;
 
         `uvm_info(get_type_name(),
                   $sformatf("AW done: AWADDR=0x%0h AWID=0x%0h AWLEN=%0d",
@@ -187,12 +201,26 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
             vif.master_cb.wvalid <= 1'b1;
 
             // Wait handshake
-                        @(posedge vif.i_clk);
-            while (!vif.master_cb.wready)
-                @(posedge vif.i_clk);
+        @(posedge vif.i_clk);
 
-            // Beat accepted
-            vif.master_cb.wvalid <= 1'b0;
+        while (!vif.master_cb.wready) begin
+
+            if (!vif.i_rst_n) begin
+
+                `uvm_warning("W_RST",
+                            "Reset detected while waiting WREADY")
+
+                vif.master_cb.wvalid <= 1'b0;
+                vif.master_cb.wlast  <= 1'b0;
+
+                return;
+            end
+
+            @(posedge vif.i_clk);
+
+        end
+
+        vif.master_cb.wvalid <= 1'b0;
 
             `uvm_info(get_type_name(),
                       $sformatf("W beat[%0d]: WDATA=0x%0h WLAST=%0b",
@@ -212,9 +240,22 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // =========================================================================
     virtual task drive_b_channel(axi4_wr_seq_item tr);
 
-                    @(posedge vif.i_clk);
-            while (!vif.master_cb.bvalid)
-                @(posedge vif.i_clk);
+        @(posedge vif.i_clk);
+
+        while (!vif.master_cb.bvalid) begin
+
+            if (!vif.i_rst_n) begin
+
+                `uvm_warning("B_RST",
+                            "Reset detected while waiting BVALID")
+
+                return;
+
+            end
+
+            @(posedge vif.i_clk);
+
+        end
                             `uvm_info("DRV_B",
             $sformatf(
             "@%0t bvalid=%0b bready=%0b bid=%0h",
