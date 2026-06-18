@@ -13,6 +13,6 @@ package axi4_test_pkg;
     `include "axi4_reset_sanity_test.sv"
     `include "axi4_reset_during_write_test.sv"
     `include "axi4_reset_during_read_test.sv"
-    `include "axi4_reset_during_read_burst.sv"
+    `include "axi4_reset_during_burst.sv"
 
 endpackage : axi4_test_pkg
