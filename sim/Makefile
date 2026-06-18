@@ -3,7 +3,7 @@
 # =============================================================================
 
 TOP        ?= tb_top
-TESTNAME   ?= axi4_reset_during_burst_test
+TESTNAME   ?= axi4_random_reset_stress_test
 
 RTL_F      = filelist/rtl.f
 TB_F       = filelist/tb.f
