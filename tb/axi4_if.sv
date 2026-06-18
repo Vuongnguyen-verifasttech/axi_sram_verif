@@ -166,4 +166,12 @@ interface axi4_if #(
     // WLAST phải match awlen (beat count)
     // (checked in scoreboard — không thể check di interface vì không biết awlen ở đây)
 
+     // ARREADY phải = 0 khi i_rst_n = 0
+    property p_arready_low_during_reset;
+        @(posedge i_clk)
+        (!i_rst_n) |-> (!arready);
+    endproperty
+    assert property (p_arready_low_during_reset)
+        else `uvm_error("AXI4_IF", "BUG: ARREADY=1 trong lúc i_rst_n=0 — slave không được accept AR request khi reset active")
+
 endinterface : axi4_if
