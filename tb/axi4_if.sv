@@ -67,6 +67,16 @@ interface axi4_if #(
     logic               rlast;
     logic               rready;
 
+    //==============================================================
+    // FIFO
+    //==============================================================
+
+    logic awfifo_empty;
+    logic arfifo_empty;
+    logic wfifo_empty;
+    logic rfifo_empty;
+    logic bfifo_empty;
+
     // =========================================================================
     // Master clocking block (driver perspective)
     // Drive: output signals, sample: input signals
