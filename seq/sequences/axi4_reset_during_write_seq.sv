@@ -2,7 +2,7 @@ class axi4_reset_during_write_seq extends axi4_base_seq;
 
 `uvm_object_utils(axi4_reset_during_write_seq)
 
-function new(string name = "axi4_reset_during_write_seq");
+function new(string name = "axi4_reset_during_wr_seq");
     super.new(name);
 endfunction
 
@@ -13,7 +13,7 @@ virtual task body();
 
     super.body();
 
-    wr_seq  = axi4_single_write_seq::type_id::create("wr_seq");
+    wr_seq  = axi4_single_wr_seq::type_id::create("wr_seq");
     rst_seq = axi4_reset_seq::type_id::create("rst_seq");
 
     //-----------------------------------------
