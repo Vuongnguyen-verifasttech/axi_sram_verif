@@ -40,7 +40,25 @@ class axi4_base_test extends uvm_test;
         // 3. Tạo env
         env = axi4_env::type_id::create("env", this);
     endfunction
+    // =====================================================================
+    // Connect Phase
+    // =====================================================================
+    virtual function void connect_phase(uvm_phase phase);
+        virtual axi4_if temp_vif;
+        super.connect_phase(phase);
 
+        // 1. Lấy virtual interface từ top_tb truyền xuống test
+        if (!uvm_config_db#(virtual axi4_if)::get(this, "", "vif", temp_vif)) begin
+            `uvm_fatal("TEST_CONNECT", "Không thể lấy 'vif' từ uvm_config_db! Hãy check file top_tb.sv xem đã set chưa.")
+        end
+
+        // 2. Pass tiếp con trỏ vif này vào trong virtual sequencer để sequence dùng
+        if (env.virtual_seqr != null) begin
+            env.virtual_seqr.vif = temp_vif;
+        end else begin
+            `uvm_fatal("TEST_CONNECT", "env.virtual_seqr bị NULL! Hãy check xem virtual_seqr đã được tạo trong env chưa.")
+        end
+    endfunction
     // =====================================================================
     // Run Phase - Start basic sequence
     // =====================================================================
