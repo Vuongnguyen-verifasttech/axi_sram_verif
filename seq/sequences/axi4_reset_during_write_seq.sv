@@ -8,7 +8,7 @@ endfunction
 
 virtual task body();
 
-    axi4_single_write_seq wr_seq;
+    axi4_single_wr_seq wr_seq;
     axi4_reset_seq        rst_seq;
 
     super.body();
