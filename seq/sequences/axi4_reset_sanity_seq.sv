@@ -53,16 +53,16 @@ class axi4_reset_sanity_seq extends axi4_base_seq;
         //-----------------------------------------
         // FIFO signals
         //-----------------------------------------
-        assert(tb_top.dut.awfifo_empty)
+        assert(tb_top.u_dut.awfifo_empty)
             else `uvm_error("RESET_CHECK","AW FIFO EMPTY AFTER RESET")
 
-        assert(tb_top.dut.arfifo_empty)
+        assert(tb_top.u_dut.arfifo_empty)
             else `uvm_error("RESET_CHECK","AR FIFO EMPTY AFTER RESET")
 
-        assert(tb_top.dut.wfifo_empty)
+        assert(tb_top.u_dut.wfifo_empty)
             else `uvm_error("RESET_CHECK","W FIFO EMPTY AFTER RESET")
 
-        assert(tb_top.dut.wfifo_empty)
+        assert(tb_top.u_dut.wfifo_empty)
             else `uvm_error("RESET_CHECK","R FIFO EMPTY AFTER RESET")
 
         
