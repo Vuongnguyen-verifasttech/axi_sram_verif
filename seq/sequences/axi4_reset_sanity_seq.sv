@@ -50,6 +50,22 @@ class axi4_reset_sanity_seq extends axi4_base_seq;
         `uvm_info(get_type_name(),
                   "Reset sanity checks passed",
                   UVM_LOW)
+        //-----------------------------------------
+        // FIFO signals
+        //-----------------------------------------
+        assert(tb_top.dut.awfifo_empty)
+            else `uvm_error("RESET_CHECK","AW FIFO EMPTY AFTER RESET")
+
+        assert(tb_top.dut.arfifo_empty)
+            else `uvm_error("RESET_CHECK","AR FIFO EMPTY AFTER RESET")
+
+        assert(tb_top.dut.wfifo_empty)
+            else `uvm_error("RESET_CHECK","W FIFO EMPTY AFTER RESET")
+
+        assert(tb_top.dut.wfifo_empty)
+            else `uvm_error("RESET_CHECK","R FIFO EMPTY AFTER RESET")
+
+        
 
     endtask
 
