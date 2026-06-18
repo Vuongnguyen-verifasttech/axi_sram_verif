@@ -88,12 +88,27 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
 
         //Giu arvalid cho cho den khi arready = 1 --> handshake thanh cong --> luc nay dut da nhan Address, Burst type, ID ...
 
-        @(posedge vif.i_clk);
-while (!vif.master_cb.arready)
-    @(posedge vif.i_clk);
+                  @(posedge vif.i_clk);
 
-        vif.master_cb.arvalid <= 1'b0;
-        vif.master_cb.araddr  <= '0;
+            while (!vif.master_cb.arready) begin
+
+                if (!vif.i_rst_n) begin
+
+                    `uvm_warning("AR_RST",
+                                "Reset detected while waiting ARREADY")
+
+                    vif.master_cb.arvalid <= 1'b0;
+                    vif.master_cb.araddr  <= '0;
+
+                    return;
+                end
+
+                @(posedge vif.i_clk);
+
+            end
+
+                vif.master_cb.arvalid <= 1'b0;
+                vif.master_cb.araddr  <= '0;
 
         `uvm_info(get_type_name(),
                   $sformatf("AR done: ARADDR=0x%0h ARID=0x%0h ARLEN=%0d",

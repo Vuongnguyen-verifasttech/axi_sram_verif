@@ -40,6 +40,7 @@ package axi4_seq_pkg;
     `include "../seq/sequences/axi4_reset_sanity_seq.sv"
     
     `include "../seq/sequences/axi4_reset_during_write_seq.sv"
+     `include "../seq/sequences/axi4_reset_during_read_seq.sv"
     // =====================================================================
     // Mixed Sequences
     // =====================================================================
