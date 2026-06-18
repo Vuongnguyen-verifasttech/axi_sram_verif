@@ -53,21 +53,20 @@ class axi4_reset_sanity_seq extends axi4_base_seq;
         //-----------------------------------------
         // FIFO signals
         //-----------------------------------------
-        assert(vif.awfifo_empty)
-            else `uvm_error("RESET", "AW FIFO not empty");
+        assert(vseqr.vif.awfifo_empty)
+    else `uvm_error("RESET", "AW FIFO not empty");
 
-        assert(vif.arfifo_empty)
-            else `uvm_error("RESET", "AR FIFO not empty");
+assert(vseqr.vif.arfifo_empty)
+    else `uvm_error("RESET", "AR FIFO not empty");
 
-        assert(vif.wfifo_empty)
-            else `uvm_error("RESET", "W FIFO not empty");
+assert(vseqr.vif.wfifo_empty)
+    else `uvm_error("RESET", "W FIFO not empty");
 
-        assert(vif.rfifo_empty)
-            else `uvm_error("RESET", "R FIFO not empty");
+assert(vseqr.vif.rfifo_empty)
+    else `uvm_error("RESET", "R FIFO not empty");
 
-        assert(vif.bfifo_empty)
-            else `uvm_error("RESET", "B FIFO not empty");
-
+assert(vseqr.vif.bfifo_empty)
+    else `uvm_error("RESET", "B FIFO not empty");
         
 
     endtask
