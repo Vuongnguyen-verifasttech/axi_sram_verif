@@ -172,6 +172,6 @@ interface axi4_if #(
         (!i_rst_n) |-> (!arready);
     endproperty
     assert property (p_arready_low_during_reset)
-        else `uvm_error("AXI4_IF", "BUG: ARREADY=1 trong lúc i_rst_n=0 — slave không được accept AR request khi reset active")
+        else `uvm_error("AXI4_IF", "BUG: ARREADY=1 trong luc i_rst_n=0 — slave khong duoc accept AR request khi reset active")
 
 endinterface : axi4_if
