@@ -37,7 +37,14 @@ virtual task body();
             rst_seq.start(vseqr);
         end
 
-    join
+    join_any
+    // Sát tử luồng còn lại (wr_seq) đang bị kẹt lửng lơ
+    disable fork; 
+
+    //-----------------------------------------
+    // Post-reset checks
+    //-----------------------------------------
+    `uvm_info(get_type_name(), "Moving to post-reset assertions check...", UVM_LOW)
 
     //-----------------------------------------
     // Post-reset checks
