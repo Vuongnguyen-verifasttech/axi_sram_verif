@@ -35,9 +35,11 @@ package axi4_seq_pkg;
     `include "../seq/sequences/axi4_wr_rd_integrity_seq.sv"
     `include "../seq/base/axi4_base_seq.sv"
    
+   // RESET SEQUENCE
     `include "../seq/sequences/axi4_reset_seq.sv"
     `include "../seq/sequences/axi4_reset_sanity_seq.sv"
-
+    
+    `include "../seq/sequences/axi4_reset_during_write_seq.sv"
     // =====================================================================
     // Mixed Sequences
     // =====================================================================
