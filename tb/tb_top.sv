@@ -144,6 +144,8 @@ module tb_top;
     env_cfg = axi4_env_cfg::type_id::create("env_cfg");
     uvm_config_db#(axi4_env_cfg)::set(null, "uvm_test_top.env", "env_cfg", env_cfg);
 
+    uvm_config_db#(virtual axi4_if)::set(null, "uvm_test_top", "vif", axi_if);
+
     // Driver dùng modport master
     uvm_config_db#(virtual axi4_if.master)::set(
         null, "uvm_test_top.env.axi_agent.wr_driver", "vif", axi_if);
