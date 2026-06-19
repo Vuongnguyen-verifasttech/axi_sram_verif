@@ -15,6 +15,6 @@ package axi4_test_pkg;
     `include "axi4_reset_during_read_test.sv"
     `include "axi4_reset_during_burst_test.sv"
     `include "axi4_random_reset_stress_test.sv"
-    `include "axi4_incr_burst_write_test.sv"
+    `include "axi4_incr_burst_wr_test.sv"
 
 endpackage : axi4_test_pkg
