@@ -43,6 +43,7 @@ package axi4_seq_pkg;
      `include "../seq/sequences/axi4_reset_during_read_seq.sv"
      `include "../seq/sequences/axi4_reset_during_burst_seq.sv"
      `include "../seq/sequences/axi4_random_reset_stress_seq.sv"
+     `include "../seq/sequences/axi4_incr_burst_write_seq.sv"
     // =====================================================================
     // Mixed Sequences
     // =====================================================================
