@@ -63,7 +63,7 @@ class axi4_fixed_burst_seq extends axi4_base_seq;
 
             if (!rd_req.randomize() with {
                     arburst == 2'b00;           // FIXED
-                    arlen   == 0;               // 1 beat — đọc giá trị beat cuối write
+                    arlen == wr_req.awlen;   // cùng số beat với write → bảng hiện đủ N dòng               // 1 beat — đọc giá trị beat cuối write
                     araddr  == wr_req.awaddr;
                 })
                 `uvm_fatal(get_type_name(), "RD Randomization failed")
