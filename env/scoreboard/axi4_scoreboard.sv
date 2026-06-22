@@ -274,7 +274,7 @@ $sformatf("%4d  0x%08h  0x%08h  0x%08h  %s\n",
                         if (addr >= wrap_boundary + wrap_len) begin
                             // Wrap xảy ra tại beat này
                             result_table = {result_table,
-                                $sformatf("  >> WRAP: expected_addr=0x%08h (wrap→0x%08h) | dut_addr=0x%08h (no wrap!)\n",
+                                $sformatf("  >> WRAP: expected_addr=0x%08h (wrap:0x%08h) | dut_addr=0x%08h (no wrap!)\n",
                                           addr, wrap_boundary, addr_dut)};
                             addr = wrap_boundary;
                         end
