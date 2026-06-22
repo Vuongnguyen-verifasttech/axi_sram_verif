@@ -266,11 +266,18 @@ $sformatf("%4d  0x%08h  0x%08h  0x%08h  %s\n",
                     2'b10: begin
                         logic [31:0] wrap_len;
                         logic [31:0] wrap_boundary;
+                        logic [31:0] addr_dut;
                         wrap_len      = (tr.arlen + 1) * 4;
                         wrap_boundary = (tr.araddr / wrap_len) * wrap_len;
+                        addr_dut      = (addr + 4) & ~(32'h3);  // logic DUT bug
                         addr          = addr + 4;
-                        if (addr >= wrap_boundary + wrap_len)
+                        if (addr >= wrap_boundary + wrap_len) begin
+                            // Wrap xảy ra tại beat này
+                            result_table = {result_table,
+                                $sformatf("  >> WRAP: expected_addr=0x%08h (wrap→0x%08h) | dut_addr=0x%08h (no wrap!)\n",
+                                          addr, wrap_boundary, addr_dut)};
                             addr = wrap_boundary;
+                        end
                     end
 
                     default:
