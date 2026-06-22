@@ -103,7 +103,7 @@ class axi4_wrap_burst_seq extends axi4_base_seq;
         end
 
         `uvm_info(get_type_name(),
-            "DONE WRAP Burst — check scoreboard summary để xem bug có bị exposed không",
+            "======================DONE WRAP Burst =============================",
             UVM_LOW)
 
     endtask
