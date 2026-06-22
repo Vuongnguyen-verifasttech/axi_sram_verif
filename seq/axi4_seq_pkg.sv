@@ -46,6 +46,7 @@ package axi4_seq_pkg;
      `include "../seq/sequences/axi4_incr_burst_wr_seq.sv"
       `include "../seq/sequences/axi4_incr_burst_rd_seq.sv" 
        `include "../seq/sequences/axi4_fixed_burst_seq.sv"
+      `include "../seq/sequences/axi4_wrap_burst_seq.sv"
     // =====================================================================
     // Mixed Sequences
     // =====================================================================

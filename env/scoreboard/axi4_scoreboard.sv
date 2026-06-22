@@ -14,7 +14,7 @@
 //
 // Lưu ý:
 //   - Match DUT implementation hiện tại
-//   - Không implement AXI4 WRAP chuẩn
+//   - WRAP implement đúng AXI4 spec — dùng để expose RTL bug
 //   - BRESP/RRESP luôn kỳ vọng = OKAY (2'b00)
 // =============================================================================
 
@@ -141,9 +141,17 @@ class axi4_scoreboard extends uvm_scoreboard;
                 2'b01:
                     addr = addr + 4;
 
-                // Match DUT implementation
-                2'b10:
-                    addr = (addr + 4) & ~(32'h3);
+                
+                // AXI4 WRAP spec chuẩn — expose RTL bug
+                2'b10: begin
+                    logic [31:0] wrap_len;
+                    logic [31:0] wrap_boundary;
+                    wrap_len      = (tr.awlen + 1) * 4;
+                    wrap_boundary = (tr.awaddr / wrap_len) * wrap_len;
+                    addr          = addr + 4;
+                    if (addr >= wrap_boundary + wrap_len)
+                        addr = wrap_boundary;
+                end
 
                 default:
                     addr = addr + 4;
@@ -255,8 +263,15 @@ $sformatf("%4d  0x%08h  0x%08h  0x%08h  %s\n",
                     2'b01:
                         addr = addr + 4;
 
-                    2'b10:
-                        addr = (addr + 4) & ~(32'h3);
+                    2'b10: begin
+                        logic [31:0] wrap_len;
+                        logic [31:0] wrap_boundary;
+                        wrap_len      = (tr.arlen + 1) * 4;
+                        wrap_boundary = (tr.araddr / wrap_len) * wrap_len;
+                        addr          = addr + 4;
+                        if (addr >= wrap_boundary + wrap_len)
+                            addr = wrap_boundary;
+                    end
 
                     default:
                         addr = addr + 4;
