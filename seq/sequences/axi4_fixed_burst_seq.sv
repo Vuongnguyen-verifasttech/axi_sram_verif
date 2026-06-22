@@ -1,12 +1,5 @@
 `timescale 1ns/1ps
 
-// =============================================================================
-// axi4_fixed_burst_seq.sv
-// FIXED Burst: tất cả beat ghi/đọc cùng 1 địa chỉ
-// AXI4 spec: FIXED burst max 16 beats (awlen <= 15)
-// Verify: beat cuối cùng là giá trị còn lại trong SRAM
-// =============================================================================
-
 class axi4_fixed_burst_seq extends axi4_base_seq;
 
     `uvm_object_utils(axi4_fixed_burst_seq)
@@ -33,13 +26,13 @@ class axi4_fixed_burst_seq extends axi4_base_seq;
         repeat (n_trans) begin
 
             // ------------------------------------------------------------------
-            // Write: FIXED burst — tất cả beat hit cùng awaddr
+            // Write
             // ------------------------------------------------------------------
             wr_req = axi4_wr_seq_item::type_id::create("wr_req");
 
             if (!wr_req.randomize() with {
-                    awburst == 2'b00;           // FIXED
-                    awlen   inside {[1:15]};    // max 16 beats per AXI4 spec
+                    awburst == 2'b00;
+                    awlen   inside {[1:15]};
                     awaddr  % 4 == 0;
                     wdata.size() == awlen + 1;
                 })
@@ -51,19 +44,17 @@ class axi4_fixed_burst_seq extends axi4_base_seq;
                 UVM_MEDIUM)
 
             wr_seq = axi4_single_wr_seq::type_id::create("wr_seq");
-            wr_seq.req = wr_req; // đảm bảo seq sẽ lấy constraint theo fixed
+            wr_seq.req = wr_req;
             wr_seq.start(vseqr.wr_seqr);
 
             // ------------------------------------------------------------------
-            // Read: cùng địa chỉ, arlen=0 (single beat) —
-            // FIXED read 1 beat đủ verify giá trị beat cuối
+            // Read — cùng địa chỉ, cùng số beat
             // ------------------------------------------------------------------
-            //req: single wite sequence 
             rd_req = axi4_rd_seq_item::type_id::create("rd_req");
 
             if (!rd_req.randomize() with {
-                    arburst == 2'b00;           // FIXED
-                    arlen == wr_req.awlen;   // cùng số beat với write → bảng hiện đủ N dòng               // 1 beat — đọc giá trị beat cuối write
+                    arburst == 2'b00;
+                    arlen   == wr_req.awlen;   // đủ số beat để check cả 2 điều kiện
                     araddr  == wr_req.awaddr;
                 })
                 `uvm_fatal(get_type_name(), "RD Randomization failed")
@@ -72,8 +63,44 @@ class axi4_fixed_burst_seq extends axi4_base_seq;
             rd_seq.req = rd_req;
             rd_seq.start(vseqr.rd_seqr);
 
-            // Scoreboard sẽ compare rdata[0] với shadow_mem[awaddr>>2]
-            // shadow_mem đã được update đúng: beat cuối cùng ghi đè
+            // ------------------------------------------------------------------
+            // Checker 1: beat cuối write == tất cả beat read về (last beat wins)
+            // Checker 2: tất cả beat read giống nhau (DUT không tăng địa chỉ)
+            // ------------------------------------------------------------------
+            begin
+                logic [31:0] last_wdata;
+                logic [31:0] first_rdata;
+                bit check_pass;
+
+                last_wdata  = wr_req.wdata[wr_req.awlen];  // beat cuối write
+                first_rdata = rd_req.rdata[0];
+                check_pass  = 1;
+
+                // Checker 1: last beat write == rdata[0]
+                if (first_rdata !== last_wdata) begin
+                    check_pass = 0;
+                    `uvm_error(get_type_name(),
+                        $sformatf("FAIL [Last Beat Wins]: AWADDR=0x%0h last_wdata=0x%0h rdata[0]=0x%0h",
+                                  wr_req.awaddr, last_wdata, first_rdata))
+                end
+
+                // Checker 2: tất cả beat read phải giống nhau
+                foreach (rd_req.rdata[i]) begin
+                    if (rd_req.rdata[i] !== first_rdata) begin
+                        check_pass = 0;
+                        `uvm_error(get_type_name(),
+                            $sformatf("FAIL [Addr Not Fixed]: beat[%0d]=0x%0h != beat[0]=0x%0h — DUT đã tăng địa chỉ nội bộ",
+                                      i, rd_req.rdata[i], first_rdata))
+                    end
+                end
+
+                if (check_pass)
+                    `uvm_info(get_type_name(),
+                        $sformatf("PASS: AWADDR=0x%0h last_wdata=0x%0h | %0d read beats đều giống nhau",
+                                  wr_req.awaddr, last_wdata, rd_req.rdata.size()),
+                        UVM_MEDIUM)
+            end
+
         end
 
         `uvm_info(get_type_name(), "DONE FIXED Burst", UVM_LOW)
