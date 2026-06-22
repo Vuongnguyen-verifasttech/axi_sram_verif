@@ -141,7 +141,7 @@ module tb_top;
     assign axi_if.wfifo_empty  = u_dut.w_wfifo_empty;
     assign axi_if.rfifo_empty  = u_dut.w_rfifo_empty;
     assign axi_if.bfifo_empty  = u_dut.w_bfifo_empty;
-    assign axi_if.sram_addr = sram_addr;
+    assign axi_if.sram_addr = u_dut.sram_addr;
 
     // =========================================================================
     // UVM config_db — Sửa đổi: Bỏ modport (.master/.slave) khỏi tham số DB
