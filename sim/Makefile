@@ -3,7 +3,7 @@
 # =============================================================================
 
 TOP        ?= tb_top
-TESTNAME   ?= axi4_wrap_burst_test
+TESTNAME   ?= axi4_concurrent_rw_test
 
 RTL_F      = filelist/rtl.f
 TB_F       = filelist/tb.f
