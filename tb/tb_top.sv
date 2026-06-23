@@ -60,7 +60,7 @@ module tb_top;
     logic        sram_oe;
 
     initial begin
-        foreach (sram_mem[i]) sram_mem[i] = 32'hDEAD_BEEF;
+        foreach (sram_mem[i]) sram_mem[i] = 32'hxxxxxxxx;
     end
 
     // Ghi đồng bộ
