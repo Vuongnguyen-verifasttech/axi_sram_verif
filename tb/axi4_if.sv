@@ -67,6 +67,9 @@ interface axi4_if #(
     logic               rlast;
     logic               rready;
 
+    // DUT internal — wire từ tb_top: assign axi_if.sram_addr = sram_addr
+    logic [ADDR_WD-1:0] sram_addr;
+
     //==============================================================
     // FIFO
     //==============================================================
@@ -174,14 +177,14 @@ interface axi4_if #(
     assert property (p_arready_low_during_reset)
         else `uvm_error("AXI4_IF", "BUG: ARREADY=1 trong luc i_rst_n=0 — slave khong duoc accept AR request khi reset active")
 
+
     // =========================================================================
     // WRAP Address Checker
-    // So sánh sram_addr thực tế DUT vs expected_addr theo AXI4 WRAP spec
-    // Báo lỗi ngay tại beat vi phạm — không đợi scoreboard
     // =========================================================================
     // synthesis translate_off
     logic [ADDR_WD-1:0] chk_wrap_expected_addr;
     logic [ADDR_WD-1:0] chk_wrap_boundary;
+    logic [ADDR_WD-1:0] chk_wrap_next_addr;
     logic [31:0]        chk_wrap_len;
     logic               chk_wrap_active;
     int                 chk_wrap_beat;
@@ -193,9 +196,9 @@ interface axi4_if #(
             chk_wrap_expected_addr <= 0;
             chk_wrap_boundary      <= 0;
             chk_wrap_len           <= 0;
+            chk_wrap_next_addr     <= 0;
         end else begin
 
-            // Bắt AR handshake WRAP
             if (arvalid && arready && arburst == 2'b10) begin
                 chk_wrap_len           <= (arlen + 1) * 4;
                 chk_wrap_boundary      <= (araddr / ((arlen + 1) * 4))
@@ -205,33 +208,25 @@ interface axi4_if #(
                 chk_wrap_beat          <= 0;
             end
 
-            // Check mỗi R beat
             if (chk_wrap_active && rvalid && rready) begin
-                logic [ADDR_WD-1:0] next_addr;
 
                 if (sram_addr !== chk_wrap_expected_addr)
                     `uvm_error("AXI4_IF_WRAP",
                         $sformatf("WRAP ADDR MISMATCH beat=%0d | expected=0x%08h | dut_sram_addr=0x%08h | boundary=0x%08h",
-                                  chk_wrap_beat,
-                                  chk_wrap_expected_addr,
-                                  sram_addr,
-                                  chk_wrap_boundary))
+                                  chk_wrap_beat, chk_wrap_expected_addr,
+                                  sram_addr, chk_wrap_boundary))
                 else
                     `uvm_info("AXI4_IF_WRAP",
                         $sformatf("WRAP ADDR OK beat=%0d | addr=0x%08h",
-                                  chk_wrap_beat,
-                                  chk_wrap_expected_addr),
+                                  chk_wrap_beat, chk_wrap_expected_addr),
                         UVM_HIGH)
 
-                // Tính expected beat tiếp theo theo WRAP spec
-                next_addr = chk_wrap_expected_addr + 4;
-                if (next_addr >= chk_wrap_boundary + chk_wrap_len)
-                    next_addr = chk_wrap_boundary;
-                chk_wrap_expected_addr <= next_addr;
+                chk_wrap_next_addr = chk_wrap_expected_addr + 4;
+                if (chk_wrap_next_addr >= chk_wrap_boundary + chk_wrap_len)
+                    chk_wrap_next_addr = chk_wrap_boundary;
+                chk_wrap_expected_addr <= chk_wrap_next_addr;
 
-                if (rlast)
-                    chk_wrap_active <= 0;
-
+                if (rlast) chk_wrap_active <= 0;
                 chk_wrap_beat <= chk_wrap_beat + 1;
             end
 
