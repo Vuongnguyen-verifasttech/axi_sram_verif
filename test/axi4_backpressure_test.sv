@@ -59,13 +59,12 @@ class axi4_backpressure_test extends uvm_test;
         env_cfg.agent_cfg.ar_timeout_cycles = 2000;
         env_cfg.agent_cfg.r_timeout_cycles  = 2000;
 
-        // Push cfg vào config_db — sequence lấy qua get_full_name()
+        // Push cfg vào config_db trước khi tạo env
+        // env sẽ tự lấy agent_cfg từ env_cfg.agent_cfg (không cần set riêng)
         uvm_config_db #(axi4_env_cfg)::set(this, "*", "env_cfg", env_cfg);
-        uvm_config_db #(axi4_agent_cfg)::set(this, "*", "cfg",    env_cfg.agent_cfg);
 
         // Tạo env
         env = axi4_env::type_id::create("env", this);
-        uvm_config_db #(axi4_env_cfg)::set(this, "env", "env_cfg", env_cfg);
 
     endfunction
 
