@@ -20,6 +20,7 @@ package axi4_test_pkg;
     `include "axi4_fixed_burst_test.sv"
     `include "axi4_wrap_burst_test.sv"
     `include "axi4_concurrent_rw_test.sv"
+    `include "axi4_concurrent_rw_bug_test.sv"
     
 
 endpackage : axi4_test_pkg
