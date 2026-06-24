@@ -4,7 +4,7 @@ class axi4_concurrent_rw_bug_test extends axi4_base_test;
 
     `uvm_component_utils(axi4_concurrent_rw_bug_test)
 
-    function new(string name = "axi4_concurrent_rw_test",
+    function new(string name = "axi4_concurrent_rw_bug_test",
                  uvm_component parent = null);
         super.new(name, parent);
     endfunction
@@ -14,7 +14,7 @@ class axi4_concurrent_rw_bug_test extends axi4_base_test;
 
         phase.raise_objection(this);
 
-        seq = axi4_concurrent_rw_seq::type_id::create("seq");
+        seq = axi4_concurrent_rw_bug_seq::type_id::create("seq");
         seq.start(env.virtual_seqr);
 
         phase.drop_objection(this);
