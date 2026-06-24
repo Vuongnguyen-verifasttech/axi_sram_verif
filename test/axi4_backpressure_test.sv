@@ -96,7 +96,7 @@ class axi4_backpressure_test extends uvm_test;
         seq.bp_max_cycles = 3;
 
         fork
-            seq.start(env.vseqr);
+            seq.start(env.virtual_seqr);
             begin
                 #(PHASE_TIMEOUT_NS * 1ns);
                 `uvm_fatal(get_type_name(),
@@ -122,7 +122,7 @@ class axi4_backpressure_test extends uvm_test;
         seq.bp_max_cycles = 10;
 
         fork
-            seq.start(env.vseqr);
+            seq.start(env.virtual_seqr);
             begin
                 #(PHASE_TIMEOUT_NS * 1ns);
                 `uvm_fatal(get_type_name(),
