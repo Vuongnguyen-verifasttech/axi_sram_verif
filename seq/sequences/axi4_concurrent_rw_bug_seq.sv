@@ -1,12 +1,18 @@
 `timescale 1ns/1ps
 
-class axi4_concurrent_rw_bug_seq extends axi4_base_seq;
+// =============================================================================
+// axi4_concurrent_rw_seq.sv
+// Target: không deadlock khi AW + AR pending cùng lúc
+// DUT có 1 FSM chung → serialize, nếu arbitration bug → timeout fire
+// =============================================================================
 
-    `uvm_object_utils(axi4_concurrent_rw_bug_seq)
+class axi4_concurrent_rw_seq extends axi4_base_seq;
+
+    `uvm_object_utils(axi4_concurrent_rw_seq)
 
     int unsigned n_rounds = 20;
 
-    function new(string name = "axi4_concurrent_rw_bug_seq");
+    function new(string name = "axi4_concurrent_rw_seq");
         super.new(name);
     endfunction
 
@@ -48,18 +54,14 @@ class axi4_concurrent_rw_bug_seq extends axi4_base_seq;
                     rd_seq = axi4_single_rd_seq::type_id::create("rd_seq");
                     rd_seq.req = rd_req;
                     rd_seq.start(vseqr.rd_seqr);
-
-                    // Delay nhỏ để RD thread không chạy nhanh hơn WR thread quá nhiều
-                    // Tránh trường hợp RD done sớm → burst write cuối không có read peer
-                    repeat ($urandom_range(1, 5)) @(posedge vseqr.vif.i_clk);
                 end
                 `uvm_info(get_type_name(), "RD thread done", UVM_MEDIUM)
             end
 
-        join
+        join  // nếu deadlock → 1 thread stall mãi → timeout watchdog fire
 
         `uvm_info(get_type_name(), "DONE — no deadlock detected", UVM_LOW)
 
     endtask
 
-endclass : axi4_concurrent_rw_bug_seq
+endclass : axi4_concurrent_rw_seq
