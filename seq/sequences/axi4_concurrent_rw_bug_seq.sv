@@ -6,13 +6,13 @@
 // DUT có 1 FSM chung → serialize, nếu arbitration bug → timeout fire
 // =============================================================================
 
-class axi4_concurrent_rw_seq extends axi4_base_seq;
+class axi4_concurrent_rw_bug_seq extends axi4_base_seq;
 
-    `uvm_object_utils(axi4_concurrent_rw_seq)
+    `uvm_object_utils(axi4_concurrent_rw_bug_seq)
 
     int unsigned n_rounds = 20;
 
-    function new(string name = "axi4_concurrent_rw_seq");
+    function new(string name = "axi4_concurrent_rw_bug_seq");
         super.new(name);
     endfunction
 
@@ -64,4 +64,4 @@ class axi4_concurrent_rw_seq extends axi4_base_seq;
 
     endtask
 
-endclass : axi4_concurrent_rw_seq
+endclass : axi4_concurrent_rw_bug_seq
