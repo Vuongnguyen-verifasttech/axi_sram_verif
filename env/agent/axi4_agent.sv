@@ -63,6 +63,12 @@ class axi4_agent extends uvm_agent;
             `uvm_info(get_type_name(), "cfg not found, creating default", UVM_LOW)
             cfg = axi4_agent_cfg::type_id::create("cfg");
         end
+        `uvm_info("AGENT_CFG",
+    $sformatf("cfg=%p bp=%0d max=%0d",
+        cfg,
+        cfg.backpressure_pct,
+        cfg.max_backpressure_cycles),
+    UVM_NONE)
 
         // Forward cfg xuống cho các subcomponent
         uvm_config_db#(axi4_agent_cfg)::set(this, "wr_driver",  "cfg", cfg);
