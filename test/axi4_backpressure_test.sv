@@ -43,7 +43,13 @@ class axi4_backpressure_test extends uvm_test;
         // bp_pct sẽ được override trước mỗi phase trong run_bp_phase()
         env_cfg.agent_cfg.backpressure_pct        = 0; // placeholder, override trong run
         env_cfg.agent_cfg.max_backpressure_cycles = 0; // placeholder, override trong run
-
+        `uvm_info("TEST_HANDLE",
+    $sformatf("env_cfg=%p agent_cfg=%p bp=%0d max_cyc=%0d",
+        env_cfg,
+        env_cfg.agent_cfg,
+        env_cfg.agent_cfg.backpressure_pct,
+        env_cfg.agent_cfg.max_backpressure_cycles),
+    UVM_NONE)
         uvm_config_db #(axi4_env_cfg)::set(this, "*", "env_cfg", env_cfg);
 
         env = axi4_env::type_id::create("env", this);

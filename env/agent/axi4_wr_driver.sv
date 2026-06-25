@@ -180,11 +180,13 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
             tr.wdata.size(),
             tr.awlen),
         UVM_NONE)
-        `uvm_info("DRV_CFG",
-    $sformatf("bp_pct=%0d max_cyc=%0d",
-        cfg.backpressure_pct,
-        cfg.max_backpressure_cycles),
-    UVM_NONE)
+      `uvm_info("DRV_HANDLE",
+        $sformatf("cfg=%p bp=%0d max_cyc=%0d",
+            cfg,
+            cfg.backpressure_pct,
+            cfg.max_backpressure_cycles),
+        UVM_NONE)
+
 
 
         foreach (tr.wdata[i]) begin
