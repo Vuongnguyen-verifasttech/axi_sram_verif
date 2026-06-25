@@ -41,7 +41,20 @@ class axi4_env extends uvm_env;
             `uvm_fatal("ENV_CFG", "Cannot get env_cfg from config_db")
 
         // Pass agent_cfg xuống agent
-        uvm_config_db#(axi4_agent_cfg)::set(this, "axi_agent*", "cfg", env_cfg.agent_cfg);
+        `uvm_info("FORCE_BP",
+    $sformatf("BEFORE SET bp=%0d",
+        env_cfg.agent_cfg.backpressure_pct),
+    UVM_NONE)
+
+env_cfg.agent_cfg.backpressure_pct = 55;
+env_cfg.agent_cfg.max_backpressure_cycles = 9;
+
+uvm_config_db#(axi4_agent_cfg)::set(
+    this,
+    "axi_agent*",
+    "cfg",
+    env_cfg.agent_cfg
+);
 
         // Tạo các component
         axi_agent      = axi4_agent::type_id::create("axi_agent", this);
