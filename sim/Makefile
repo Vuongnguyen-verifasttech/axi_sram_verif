@@ -3,7 +3,7 @@
 # =============================================================================
 
 TOP        ?= tb_top
-TESTNAME   ?= axi4_backpressure_test
+TESTNAME   ?= axi4_multi_outstanding_test
 
 RTL_F      = filelist/rtl.f
 TB_F       = filelist/tb.f
