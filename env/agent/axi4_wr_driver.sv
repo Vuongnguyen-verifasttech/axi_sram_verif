@@ -188,15 +188,21 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
                     $urandom_range(1,cfg.max_backpressure_cycles) :
                     0;
 
-                if (bp_cycles > 0) begin
-                    `uvm_info("WR_BP",
-                        $sformatf("W  beat[%0d] STALL %0d cycles | bp_pct=%0d%% | AWADDR=0x%0h",
-                            i, bp_cycles, cfg.backpressure_pct, tr.awaddr),
-                        UVM_LOW)
-                    vif.master_cb.wvalid <= 1'b0;
-                    repeat (bp_cycles)
-                        @(posedge vif.i_clk);
-                end
+ // THÊM 2 DÒNG NÀY
+                    `uvm_info("WR_BP_DBG",
+                        $sformatf("bp_pct=%0d max_cyc=%0d bp_cycles=%0d beat=%0d",
+                            cfg.backpressure_pct, cfg.max_backpressure_cycles,
+                            bp_cycles, i),
+                        UVM_NONE)
+
+                    if (bp_cycles > 0) begin
+                        `uvm_info("WR_BP",
+                            $sformatf("W beat[%0d] STALL %0d cycles | bp_pct=%0d%% | AWADDR=0x%0h",
+                                i, bp_cycles, cfg.backpressure_pct, tr.awaddr),
+                            UVM_LOW)
+                        vif.master_cb.wvalid <= 1'b0;
+                        repeat (bp_cycles) @(posedge vif.i_clk);
+                    end
             end
 
             // Drive beat
