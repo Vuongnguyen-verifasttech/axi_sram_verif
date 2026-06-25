@@ -3,28 +3,24 @@
 // =============================================================================
 // axi4_backpressure_test.sv
 //
-// Test 2 phase:
-//   Phase 1 — LOW  backpressure (bp_pct = 20%) : warm-up, verify cơ bản
-//   Phase 2 — HIGH backpressure (bp_pct = 80%) : stress, dễ lộ deadlock
+// Reuse axi4_wr_rd_integrity_seq — chỉ khác integrity_test ở bp_pct
 //
-// Timeout: uvm_objection set_drain_time + set_timeout
-//   - Nếu DUT deadlock thì objection không drop → timeout bắt → test FAIL
+// env_cfg defaults đã đủ (scoreboard=1, coverage=1, enable_bp=1, timeout=1000)
+// Test chỉ cần force backpressure_pct + max_backpressure_cycles trước mỗi phase
+// vì 2 field này là rand — nếu không force có thể ra 0%, không test được gì
+//
+// 2 phase:
+//   Phase 1 — LOW  (bp_pct=20%) : warm-up, verify cơ bản dưới stall nhẹ
+//   Phase 2 — HIGH (bp_pct=80%) : stress, lộ deadlock / data loss dưới stall nặng
 // =============================================================================
 
 class axi4_backpressure_test extends uvm_test;
 
     `uvm_component_utils(axi4_backpressure_test)
 
-    // =========================================================================
-    // Environment
-    // =========================================================================
-    axi4_env      env;
-    axi4_env_cfg  env_cfg;
+    axi4_env     env;
+    axi4_env_cfg env_cfg;
 
-    // =========================================================================
-    // Timeout per phase (cycles → ns, giả sử 10ns/cycle)
-    // 30 trans × 8 beats × ~20 cycles/beat × backpressure overhead × 2 phase
-    // =========================================================================
     localparam int unsigned PHASE_TIMEOUT_NS = 100_000;
 
     function new(string name = "axi4_backpressure_test",
@@ -38,120 +34,95 @@ class axi4_backpressure_test extends uvm_test;
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
 
-        // Tạo và configure env_cfg
         env_cfg = axi4_env_cfg::type_id::create("env_cfg");
 
         if (!env_cfg.randomize())
             `uvm_fatal(get_type_name(), "env_cfg randomize failed")
 
-        // Force scoreboard + coverage bật
-        env_cfg.enable_scoreboard = 1;
-        env_cfg.enable_coverage   = 1;
+        // Chỉ cần set 2 field rand này — còn lại default đã đúng
+        // bp_pct sẽ được override trước mỗi phase trong run_bp_phase()
+        env_cfg.agent_cfg.backpressure_pct        = 0; // placeholder, override trong run
+        env_cfg.agent_cfg.max_backpressure_cycles = 0; // placeholder, override trong run
 
-        // agent_cfg: enable cả 2 chiều backpressure
-        env_cfg.agent_cfg.enable_write_bp = 1;
-        env_cfg.agent_cfg.enable_read_bp  = 1;
-
-        // Timeout mỗi channel — đủ rộng cho high backpressure
-        env_cfg.agent_cfg.aw_timeout_cycles = 2000;
-        env_cfg.agent_cfg.w_timeout_cycles  = 2000;
-        env_cfg.agent_cfg.b_timeout_cycles  = 2000;
-        env_cfg.agent_cfg.ar_timeout_cycles = 2000;
-        env_cfg.agent_cfg.r_timeout_cycles  = 2000;
-
-        // Push cfg vào config_db trước khi tạo env
-        // env sẽ tự lấy agent_cfg từ env_cfg.agent_cfg (không cần set riêng)
         uvm_config_db #(axi4_env_cfg)::set(this, "*", "env_cfg", env_cfg);
 
-        // Tạo env
         env = axi4_env::type_id::create("env", this);
 
     endfunction
+
+    // =========================================================================
+    // Helper — set bp rồi run integrity seq
+    // =========================================================================
+    task run_bp_phase(int unsigned bp_pct,
+                      int unsigned bp_max_cyc,
+                      int unsigned n_trans,
+                      string       phase_name);
+
+        axi4_wr_rd_integrity_seq seq;
+
+        // Force bp trực tiếp vào agent_cfg handle — driver đọc object này
+        env_cfg.agent_cfg.backpressure_pct        = bp_pct;
+        env_cfg.agent_cfg.max_backpressure_cycles = bp_max_cyc;
+
+        `uvm_info(get_type_name(),
+            $sformatf("===== %s: bp_pct=%0d%% max_cyc=%0d n_trans=%0d =====",
+                phase_name, bp_pct, bp_max_cyc, n_trans),
+            UVM_LOW)
+
+        seq                  = axi4_wr_rd_integrity_seq::type_id::create(phase_name);
+        seq.num_transactions = n_trans;
+
+        fork
+            seq.start(env.virtual_seqr);
+            begin
+                #(PHASE_TIMEOUT_NS * 1ns);
+                `uvm_fatal(get_type_name(),
+                    $sformatf("TIMEOUT: %s did not complete — possible deadlock",
+                              phase_name))
+            end
+        join_any
+        disable fork;
+
+        #200ns; // drain — cho pipeline DUT xả hết
+
+    endtask
 
     // =========================================================================
     // Run Phase
     // =========================================================================
     virtual task run_phase(uvm_phase phase);
 
-        axi4_backpressure_seq seq;
-        uvm_objection         obj;
-
+        uvm_objection obj;
         obj = phase.get_objection();
-        obj.set_drain_time(this, 200ns);          // Cho pipeline flush sau mỗi phase
-        obj.set_report_verbosity_level(UVM_MEDIUM);
+        obj.set_drain_time(this, 200ns);
 
         phase.raise_objection(this, "backpressure_test start");
 
-        // =====================================================================
-        // Phase 1 — LOW backpressure (20%)
-        // Mục đích: verify basic correctness với một chút stall
-        // =====================================================================
-        `uvm_info(get_type_name(),
-            "========== PHASE 1: LOW BACKPRESSURE (20%) ==========",
-            UVM_LOW)
+        // Phase 1 — LOW: nếu fail ở đây là bug cơ bản
+        run_bp_phase(.bp_pct(20), .bp_max_cyc(3),  .n_trans(20), .phase_name("LOW_BP"));
 
-        seq           = axi4_backpressure_seq::type_id::create("seq_low");
-        seq.n_trans   = 20;
-        seq.bp_pct    = 20;
-        seq.bp_max_cycles = 3;
-
-        fork
-            seq.start(env.virtual_seqr);
-            begin
-                #(PHASE_TIMEOUT_NS * 1ns);
-                `uvm_fatal(get_type_name(),
-                    "TIMEOUT: Phase 1 (LOW bp) did not complete — possible deadlock")
-            end
-        join_any
-        disable fork;
-
-        // Drain — đợi pipeline xả hết
-        #200ns;
-
-        // =====================================================================
-        // Phase 2 — HIGH backpressure (80%)
-        // Mục đích: stress test, lộ deadlock / data corruption dưới heavy stall
-        // =====================================================================
-        `uvm_info(get_type_name(),
-            "========== PHASE 2: HIGH BACKPRESSURE (80%) ==========",
-            UVM_LOW)
-
-        seq               = axi4_backpressure_seq::type_id::create("seq_high");
-        seq.n_trans       = 30;
-        seq.bp_pct        = 80;
-        seq.bp_max_cycles = 10;
-
-        fork
-            seq.start(env.virtual_seqr);
-            begin
-                #(PHASE_TIMEOUT_NS * 1ns);
-                `uvm_fatal(get_type_name(),
-                    "TIMEOUT: Phase 2 (HIGH bp) did not complete — possible deadlock")
-            end
-        join_any
-        disable fork;
+        // Phase 2 — HIGH: nếu fail ở đây là bug chỉ lộ dưới stress
+        run_bp_phase(.bp_pct(80), .bp_max_cyc(10), .n_trans(30), .phase_name("HIGH_BP"));
 
         phase.drop_objection(this, "backpressure_test done");
 
     endtask
 
     // =========================================================================
-    // Report Phase — tóm tắt kết quả
+    // Report Phase
     // =========================================================================
     virtual function void report_phase(uvm_phase phase);
         uvm_report_server svr;
         svr = uvm_report_server::get_server();
 
-        if (svr.get_severity_count(UVM_FATAL)   > 0 ||
-            svr.get_severity_count(UVM_ERROR)   > 0) begin
+        if (svr.get_severity_count(UVM_FATAL) > 0 ||
+            svr.get_severity_count(UVM_ERROR) > 0)
+            `uvm_info(get_type_name(), "*** TEST FAILED ***", UVM_NONE)
+        else
             `uvm_info(get_type_name(),
-                "*** TEST FAILED — check FATAL/ERROR above ***",
+                "*** TEST PASSED — no deadlock, data intact under backpressure ***",
                 UVM_NONE)
-        end else begin
-            `uvm_info(get_type_name(),
-                "*** TEST PASSED — backpressure OK, no deadlock, data intact ***",
-                UVM_NONE)
-        end
+
     endfunction
 
 endclass : axi4_backpressure_test
