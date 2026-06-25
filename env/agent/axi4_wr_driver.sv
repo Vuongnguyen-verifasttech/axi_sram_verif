@@ -175,6 +175,12 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // Drive W Channel
     // =========================================================================
     virtual task drive_w_channel(axi4_wr_seq_item tr);
+        `uvm_info("DRV_W",
+        $sformatf("wdata_size=%0d awlen=%0d",
+            tr.wdata.size(),
+            tr.awlen),
+        UVM_NONE)
+
 
         foreach (tr.wdata[i]) begin
 
