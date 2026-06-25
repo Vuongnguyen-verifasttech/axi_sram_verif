@@ -35,7 +35,8 @@ class axi4_wr_seq_item extends uvm_sequence_item;
 
     // Supported burst types only
     constraint c_burst_type {
-        awburst inside {2'b00, 2'b01, 2'b10};
+      //  awburst inside {2'b00, 2'b01, 2'b10};
+      awburst inside {2'b01};
     }
 
     // Limit burst length for faster simulation

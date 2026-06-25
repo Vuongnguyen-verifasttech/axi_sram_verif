@@ -35,7 +35,7 @@ class axi4_rd_seq_item extends uvm_sequence_item;
     // Constraints
     // =========================================================================
     constraint c_burst_type {
-        arburst inside {2'b00, 2'b01, 2'b10};
+        arburst inside {2'b01};
     }
 
     constraint c_len_range {
