@@ -10,6 +10,12 @@
 //  3. rdata được capture trong driver (phục vụ sequences cần data ngay)
 //     Monitor vẫn là nguồn chính thức cho scoreboard
 //  4. Không dùng wait() ở bất kỳ đâu
+//
+// Fix drive_r_channel:
+//  - Dùng rlast làm điều kiện thoát thay vì repeat(expected_beats)
+//  - Phân biệt rõ 2 loại DUT bug:
+//      + RLAST_EARLY : DUT assert rlast trước khi đủ beats
+//      + RLAST_MISSING: DUT gửi đủ beats nhưng không assert rlast
 // =============================================================================
 
 class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
@@ -46,8 +52,8 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     virtual task run_phase(uvm_phase phase);
         @(posedge vif.i_clk);
         reset_rd_signals();
-         wait (vif.i_rst_n === 1'b1);
-    @(posedge vif.i_clk);
+        wait (vif.i_rst_n === 1'b1);
+        @(posedge vif.i_clk);
 
         forever begin
             axi4_rd_seq_item tr;
@@ -56,7 +62,7 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
             `uvm_info(get_type_name(),
                       $sformatf("Driving: %s", tr.convert2string()),
                       UVM_MEDIUM)
-// khong can fork join vi AR va R co quan he nhan qua nen la DUT chi phat R sau khi nhan AR
+
             drive_ar_channel(tr);
             drive_r_channel(tr);
 
@@ -73,7 +79,7 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
         vif.master_cb.arid    <= '0;
         vif.master_cb.arlen   <= '0;
         vif.master_cb.arburst <= 2'b01;
-        vif.master_cb.rready  <= 1'b0;  // default off — driver explicit control
+        vif.master_cb.rready  <= 1'b0;
     endtask
 
     // =========================================================================
@@ -86,29 +92,20 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
         vif.master_cb.arburst <= tr.arburst;
         vif.master_cb.arvalid <= 1'b1;
 
-        //Giu arvalid cho cho den khi arready = 1 --> handshake thanh cong --> luc nay dut da nhan Address, Burst type, ID ...
+        @(posedge vif.i_clk);
 
-                  @(posedge vif.i_clk);
-
-            while (!vif.master_cb.arready) begin
-
-                if (!vif.i_rst_n) begin
-
-                    `uvm_warning("AR_RST",
-                                "Reset detected while waiting ARREADY")
-
-                    vif.master_cb.arvalid <= 1'b0;
-                    vif.master_cb.araddr  <= '0;
-
-                    return;
-                end
-
-                @(posedge vif.i_clk);
-
-            end
-
+        while (!vif.master_cb.arready) begin
+            if (!vif.i_rst_n) begin
+                `uvm_warning("AR_RST", "Reset detected while waiting ARREADY")
                 vif.master_cb.arvalid <= 1'b0;
                 vif.master_cb.araddr  <= '0;
+                return;
+            end
+            @(posedge vif.i_clk);
+        end
+
+        vif.master_cb.arvalid <= 1'b0;
+        vif.master_cb.araddr  <= '0;
 
         `uvm_info(get_type_name(),
                   $sformatf("AR done: ARADDR=0x%0h ARID=0x%0h ARLEN=%0d",
@@ -117,100 +114,97 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     endtask
 
     // =========================================================================
-    // Drive R channel — assert rready, optionally deassert (backpressure)
-    // Capture rdata vào tr để sequence có thể đọc (ví dụ: write-then-read check)
-    // Monitor là nguồn chính cho scoreboard
+    // Drive R channel
+    //
+    // Dùng rlast làm điều kiện thoát — đúng AXI spec
+    // expected_beats chỉ dùng để detect DUT bug:
+    //   RLAST_EARLY  : rlast=1 nhưng beat_cnt < expected_beats
+    //   RLAST_MISSING: beat_cnt == expected_beats nhưng rlast chưa đến
     // =========================================================================
-
-    // Theo README thi : AR handshake
-                        /*      ↓
-                        AXFSM tạo burst addresses
-                            ↓
-                        Đẩy vào ARFIFO
-                            ↓
-                        Arbiter chọn read
-                            ↓
-                        SRAM đọc dữ liệu
-                            ↓
-                        RFIFO chứa read response
-                            ↓
-                        RVALID được assert
-                        */
-    // Tuc la sau AR se co 1 khoang delay, kh phai gui AR xong la xuat hien du lieu ngay. 
     virtual task drive_r_channel(axi4_rd_seq_item tr);
-        int unsigned expected_beats;
-        expected_beats = tr.arlen + 1; // Driver biet se can nhan 4 beats
-        tr.rdata.delete(); // Xoa du lieu cu neu con 
 
-        repeat (expected_beats) begin
+        int unsigned expected_beats;
+        int unsigned beat_cnt;
+
+        expected_beats = tr.arlen + 1;
+        beat_cnt       = 0;
+        tr.rdata.delete();
+
+        forever begin
+
             int unsigned bp_cycles;
 
-           
-            // Backpressure phía read (đối xứng với write side) : stall rready : master chua san sang nhan du lieu
+            // ------------------------------------------------------------------
+            // Backpressure: deassert rready trước khi accept beat
+            // ------------------------------------------------------------------
             if (cfg.backpressure_pct > 0) begin
                 bp_cycles = ($urandom_range(0, 99) < cfg.backpressure_pct) ?
                             $urandom_range(1, cfg.max_backpressure_cycles) : 0;
                 if (bp_cycles > 0) begin
                     `uvm_info("RD_BP",
                         $sformatf("R  beat[%0d] STALL %0d cycles | bp_pct=%0d%% | ARADDR=0x%0h",
-                            expected_beats - tr.rdata.size() - 1,
-                            bp_cycles, cfg.backpressure_pct, tr.araddr),
+                            beat_cnt, bp_cycles, cfg.backpressure_pct, tr.araddr),
                         UVM_LOW)
                     vif.master_cb.rready <= 1'b0;
                     repeat (bp_cycles) @(posedge vif.i_clk);
                 end
             end
 
-            // Assert rready và chờ rvalid tại clock edge
+            // ------------------------------------------------------------------
+            // Assert rready, chờ rvalid
+            // ------------------------------------------------------------------
             vif.master_cb.rready <= 1'b1;
 
             do begin
                 @(posedge vif.i_clk);
-            end while (!vif.master_cb.rvalid); // Cho DUT gui valid data 
+            end while (!vif.master_cb.rvalid);
 
-            // Beat được accept tại posedge này — capture data
+            // ------------------------------------------------------------------
+            // Handshake xảy ra — capture beat
+            // ------------------------------------------------------------------
             tr.rdata.push_back(vif.master_cb.rdata);
             tr.rresp = vif.master_cb.rresp;
             tr.rid   = vif.master_cb.rid;
+            beat_cnt++;
 
             `uvm_info(get_type_name(),
                       $sformatf("R  beat[%0d]: RDATA=0x%0h RLAST=%0b RRESP=%0b",
-                                 tr.rdata.size()-1, vif.master_cb.rdata, vif.master_cb.rlast, vif.master_cb.rresp),
+                                 beat_cnt-1, vif.master_cb.rdata,
+                                 vif.master_cb.rlast, vif.master_cb.rresp),
                       UVM_HIGH)
 
-            // Kiểm tra rlast đúng vị trí
-            if (vif.master_cb.rlast && (tr.rdata.size() != expected_beats))
+            // ------------------------------------------------------------------
+            // Kiểm tra rlast
+            // ------------------------------------------------------------------
+            if (vif.master_cb.rlast) begin
+                // DUT assert rlast — check beat count
+                if (beat_cnt != expected_beats)
+                    `uvm_error(get_type_name(),
+                        $sformatf("** RTL BUG ** RLAST_EARLY: rlast tại beat[%0d] nhưng expected=%0d beats | ARADDR=0x%0h ARLEN=%0d",
+                            beat_cnt-1, expected_beats, tr.araddr, tr.arlen))
+                // Dù đúng hay sai — rlast = tín hiệu kết thúc burst từ DUT, thoát loop
+                break;
+            end
+
+            // ------------------------------------------------------------------
+            // Đã nhận đủ beats nhưng DUT chưa assert rlast — RTL bug
+            // ------------------------------------------------------------------
+            if (beat_cnt == expected_beats) begin
                 `uvm_error(get_type_name(),
-                           $sformatf("RLAST sớm: nhận %0d beats nhưng arlen=%0d",
-                                      tr.rdata.size(), tr.arlen))
-        end
+                    $sformatf("** RTL BUG ** RLAST_MISSING: nhận đủ %0d beats nhưng rlast chưa assert | ARADDR=0x%0h ARLEN=%0d",
+                        expected_beats, tr.araddr, tr.arlen))
+                break;
+            end
+
+        end // forever
 
         vif.master_cb.rready <= 1'b0;
 
         `uvm_info(get_type_name(),
-                  $sformatf("R  done: RID=0x%0h BEATS=%0d RRESP=%0b",
-                             tr.rid, tr.rdata.size(), tr.rresp),
+                  $sformatf("R  done: RID=0x%0h BEATS=%0d/%0d RRESP=%0b",
+                             tr.rid, beat_cnt, expected_beats, tr.rresp),
                   UVM_MEDIUM)
-    endtask
 
-    /*
-                                    Driver gửi AR
-                                            ↓
-                                    AR handshake
-                                            ↓
-                                    DUT đọc SRAM
-                                            ↓
-                                    R beat0
-                                            ↓
-                                    R beat1
-                                            ↓
-                                    R beat2
-                                            ↓
-                                    R beat3 + RLAST
-                                            ↓
-                                    R channel hoàn tất
-                                            ↓
-                                    item_done()
-*/
+    endtask
 
 endclass : axi4_rd_driver
