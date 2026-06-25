@@ -64,6 +64,15 @@ class axi4_backpressure_test extends uvm_test;
         env_cfg.agent_cfg.backpressure_pct        = bp_pct;
         env_cfg.agent_cfg.max_backpressure_cycles = bp_max_cyc;
 
+         // THÊM: confirm giá trị đã được set
+    `uvm_info(get_type_name(),
+        $sformatf("CFG CHECK: bp_pct=%0d max_cyc=%0d enable_write_bp=%0b enable_read_bp=%0b",
+            env_cfg.agent_cfg.backpressure_pct,
+            env_cfg.agent_cfg.max_backpressure_cycles,
+            env_cfg.agent_cfg.enable_write_bp,
+            env_cfg.agent_cfg.enable_read_bp),
+        UVM_NONE)  // UVM_NONE = luôn hiện dù verbosity thấp
+
         `uvm_info(get_type_name(),
             $sformatf("===== %s: bp_pct=%0d%% max_cyc=%0d n_trans=%0d =====",
                 phase_name, bp_pct, bp_max_cyc, n_trans),
