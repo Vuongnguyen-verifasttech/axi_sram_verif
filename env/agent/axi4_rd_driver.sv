@@ -145,11 +145,17 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
         repeat (expected_beats) begin
             int unsigned bp_cycles;
 
+           
             // Backpressure phía read (đối xứng với write side) : stall rready : master chua san sang nhan du lieu
             if (cfg.backpressure_pct > 0) begin
                 bp_cycles = ($urandom_range(0, 99) < cfg.backpressure_pct) ?
                             $urandom_range(1, cfg.max_backpressure_cycles) : 0;
                 if (bp_cycles > 0) begin
+                    `uvm_info("RD_BP",
+                        $sformatf("R  beat[%0d] STALL %0d cycles | bp_pct=%0d%% | ARADDR=0x%0h",
+                            expected_beats - tr.rdata.size() - 1,
+                            bp_cycles, cfg.backpressure_pct, tr.araddr),
+                        UVM_LOW)
                     vif.master_cb.rready <= 1'b0;
                     repeat (bp_cycles) @(posedge vif.i_clk);
                 end

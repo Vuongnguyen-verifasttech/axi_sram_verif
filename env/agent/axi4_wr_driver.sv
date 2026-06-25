@@ -180,7 +180,7 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
 
             int unsigned bp_cycles;
 
-            // Optional backpressure: Kiểm tra DUT có xử lý được data đến không liên tục hay không = cách tự tạo delay 
+                  // Optional backpressure: Kiểm tra DUT có xử lý được data đến không liên tục hay không = cách tự tạo delay 
             if (cfg.backpressure_pct > 0) begin
 
                 bp_cycles =
@@ -189,6 +189,10 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
                     0;
 
                 if (bp_cycles > 0) begin
+                    `uvm_info("WR_BP",
+                        $sformatf("W  beat[%0d] STALL %0d cycles | bp_pct=%0d%% | AWADDR=0x%0h",
+                            i, bp_cycles, cfg.backpressure_pct, tr.awaddr),
+                        UVM_LOW)
                     vif.master_cb.wvalid <= 1'b0;
                     repeat (bp_cycles)
                         @(posedge vif.i_clk);
