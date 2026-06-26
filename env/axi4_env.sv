@@ -19,6 +19,7 @@ class axi4_env extends uvm_env;
     axi4_scoreboard      scoreboard;
     virtual axi4_if vif;     
     axi4_virtual_seqr    virtual_seqr;
+    axi4_coverage coverage; 
 
     // =====================================================================
     // UVM Automation
@@ -60,6 +61,7 @@ uvm_config_db#(axi4_agent_cfg)::set(
         axi_agent      = axi4_agent::type_id::create("axi_agent", this);
         scoreboard     = axi4_scoreboard::type_id::create("scoreboard", this);
         virtual_seqr   = axi4_virtual_seqr::type_id::create("virtual_seqr", this);
+        coverage = axi4_coverage::type_id::create("coverage", this);
 
         `uvm_info(get_type_name(), $sformatf("Environment built successfully!\n%s", env_cfg.convert2string()), UVM_LOW)
     endfunction
@@ -73,6 +75,10 @@ uvm_config_db#(axi4_agent_cfg)::set(
         // Kết nối monitor analysis ports → scoreboard
         axi_agent.ap_wr.connect(scoreboard.ae_wr);
         axi_agent.ap_rd.connect(scoreboard.ae_rd);
+
+        //Coverage
+        axi_agent.ap_wr.connect(coverage.ap_wr);
+        axi_agent.ap_rd.connect(coverage.ap_rd);
 
         // Kết nối virtual sequencer → agent sequencers
         virtual_seqr.wr_seqr = axi_agent.wr_seqr;

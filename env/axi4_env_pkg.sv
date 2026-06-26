@@ -36,8 +36,7 @@ package axi4_env_pkg;
     `include "axi4_env.sv"
 
     // =====================================================================
-    // (Coverage sẽ include sau khi viết xong)
-    // `include "coverage/axi4_coverage.sv"
+     `include "coverage/axi4_coverage.sv"
     // =====================================================================
 
 endpackage : axi4_env_pkg
