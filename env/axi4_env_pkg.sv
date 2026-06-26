@@ -31,12 +31,14 @@ package axi4_env_pkg;
 
     // 3. Scoreboard (Cần memory_model, và cần đứng trước Env)
     `include "scoreboard/axi4_scoreboard.sv"
+       `include "coverage/axi4_coverage.sv"
 
     // 4. Main Environment (Sử dụng cả Config và Scoreboard)
     `include "axi4_env.sv"
 
     // =====================================================================
-     `include "coverage/axi4_coverage.sv"
+    // (Coverage sẽ include sau khi viết xong)
+  
     // =====================================================================
 
 endpackage : axi4_env_pkg
