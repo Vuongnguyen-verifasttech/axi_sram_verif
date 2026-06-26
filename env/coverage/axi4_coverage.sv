@@ -83,7 +83,7 @@ class axi4_coverage extends uvm_component;
         cp_awlen: coverpoint wr_tr.awlen {
             bins single     = {0};          // AXI_06: len=0
             bins short      = {[1:3]};
-            bins medium     = {[4:7]};
+            bins med     = {[4:7]};
             bins long_burst = {[8:15]};     // AXI_09: full range
         }
 
@@ -114,12 +114,12 @@ class axi4_coverage extends uvm_component;
             // FIXED: AXI_12
             bins fixed_single = binsof(cp_awburst.FIXED) && binsof(cp_awlen.single);
             bins fixed_short  = binsof(cp_awburst.FIXED) && binsof(cp_awlen.short);
-            bins fixed_medium = binsof(cp_awburst.FIXED) && binsof(cp_awlen.medium);
+            bins fixed_med = binsof(cp_awburst.FIXED) && binsof(cp_awlen.med);
             bins fixed_long   = binsof(cp_awburst.FIXED) && binsof(cp_awlen.long_burst);
             // INCR: AXI_06/09
             bins incr_single  = binsof(cp_awburst.INCR)  && binsof(cp_awlen.single);
             bins incr_short   = binsof(cp_awburst.INCR)  && binsof(cp_awlen.short);
-            bins incr_medium  = binsof(cp_awburst.INCR)  && binsof(cp_awlen.medium);
+            bins incr_med  = binsof(cp_awburst.INCR)  && binsof(cp_awlen.med);
             bins incr_long    = binsof(cp_awburst.INCR)  && binsof(cp_awlen.long_burst);
         }
 
@@ -144,7 +144,7 @@ class axi4_coverage extends uvm_component;
         cp_arlen: coverpoint rd_tr.arlen {
             bins single     = {0};          // AXI_07
             bins short      = {[1:3]};
-            bins medium     = {[4:7]};
+            bins med     = {[4:7]};
             bins long_burst = {[8:15]};     // AXI_10 full range
         }
 
@@ -174,7 +174,7 @@ class axi4_coverage extends uvm_component;
         cx_burst_len: cross cp_arburst, cp_arlen {
             bins incr_single  = binsof(cp_arburst.INCR) && binsof(cp_arlen.single);
             bins incr_short   = binsof(cp_arburst.INCR) && binsof(cp_arlen.short);
-            bins incr_medium  = binsof(cp_arburst.INCR) && binsof(cp_arlen.medium);
+            bins incr_med  = binsof(cp_arburst.INCR) && binsof(cp_arlen.med);
             bins incr_long    = binsof(cp_arburst.INCR) && binsof(cp_arlen.long_burst);
             bins fixed_single = binsof(cp_arburst.FIXED) && binsof(cp_arlen.single);
             bins fixed_short  = binsof(cp_arburst.FIXED) && binsof(cp_arlen.short);
@@ -199,7 +199,7 @@ class axi4_coverage extends uvm_component;
         cp_len: coverpoint wr_tr.awlen {
             bins single = {0};
             bins short  = {[1:3]};
-            bins medium = {[4:7]};
+            bins med = {[4:7]};
             bins long_b = {[8:15]};
         }
 
@@ -292,7 +292,7 @@ class axi4_coverage extends uvm_component;
         cp_len: coverpoint wr_tr.awlen {
             bins single = {0};
             bins short  = {[1:3]};
-            bins medium = {[4:7]};
+            bins med = {[4:7]};
             bins long_b = {[8:15]};
         }
 
@@ -355,7 +355,7 @@ class axi4_coverage extends uvm_component;
         cp_len_at_reset: coverpoint wr_tr.awlen {
             bins single = {0};
             bins short  = {[1:3]};
-            bins medium = {[4:7]};
+            bins med = {[4:7]};
             bins long_b = {[8:15]};
         }
 
