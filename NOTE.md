@@ -61,3 +61,18 @@ Nhưng testbench ban đầu của  lại mô phỏng:
 SRAM latency = 0 cycle
 
 ==> timing bị lệch 1 cycle. 
+//=========================================
+                RESET TEST
+//=========================================
+1. add thêm vif vào virtual sequencer
+//	axi4_reset_during_write_test.sv \
+//	axi4_reset_during_read_test.sv \
+//	axi4_reset_during_burst_test.sv \
+//	axi4_random_reset_stress_test.sv \
+//	axi4_incr_burst_wr_test.sv \
+//	axi4_incr_burst_rd_test.sv \
+//	axi4_fixed_burst_test.sv \
+//	axi4_wrap_burst_test.sv \
+//	axi4_concurrent_rw_test.sv \
+//	axi4_backpressure_test.sv \
+	axi4_multi_outstanding_test.sv
