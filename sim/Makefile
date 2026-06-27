@@ -23,7 +23,7 @@ COV_REPORT    = coverage_report
 
 TEST_LIST ?= \
 	axi4_base_test \
-	axi4_reset_sanity_test.sv 
+	axi4_reset_during_burst_test
 
 NUM_SEEDS ?= 1
 
@@ -103,7 +103,7 @@ run_regression:
 				work.$(TOP) \
 				+UVM_TESTNAME=$$test \
 				+UVM_SEED=$$seed \
-				-do "run -all; coverage save -onexit $(COV_DIR)/$${test}_seed$$seed.ucdb; quit -f" \
+				-do "run -all; coverage save $(COV_DIR)/$${test}_seed$$seed.ucdb; quit -f" \
 				> regression_logs/$${test}_seed$$seed.log 2>&1; \
 		done; \
 	done
