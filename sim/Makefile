@@ -1,186 +1,131 @@
-# =============================================================================
-# AXI4 UVM Makefile - QuestaSim 10.6b
-# =============================================================================
+# ==============================================================================
+# Makefile AXI4 UVM - QuestaSim 10.6b
+# ==============================================================================
 
-TOP        ?= tb_top
-TESTNAME   ?= axi4_multi_outstanding_test
-
+TOP_MODULE   = tb_top
 RTL_F      = filelist/rtl.f
 TB_F       = filelist/tb.f
 
-# =============================================================================
-# Coverage
-# =============================================================================
-COV_COMPILE   = -cover bcesf
-COV_SIM       = -coverage
+# Coverage Settings cho 10.6b
+COV_COMPILE  = -cover bcesf
+COV_SIM      = -coverage
+COV_MERGE_DIR= cov_merge
+COV_REPORT   = coverage_report
 
-COV_DIR       = cov_merge
-COV_REPORT    = coverage_report
+# ==============================================================================
+# CẤU HÌNH DANH SÁCH CÁC TESTCASE MUỐN QUÉT REGRESSION
+# ==============================================================================
+# Mặc định khi gõ 'make run_regression' hoặc 'make all' sẽ chạy danh sách này
+TEST_LIST   ?= axi4_incr_burst_rd_test \
+              axi4_reset_during_read_test
 
-# =============================================================================
-# Regression Configuration
-# =============================================================================
+# Số lượng seeds mặc định cho mỗi testcase khi chạy regression
+NUM_SEEDS    ?= 3
 
-TEST_LIST ?= \
-	axi4_base_test \
-	axi4_reset_during_burst_test
+# Tên testcase mặc định khi chạy đơn lẻ (lệnh: make sim)
+TEST_NAME    ?= axi4_single_wr_test
 
-NUM_SEEDS ?= 1
+# Chuỗi target chạy tự động toàn bộ quy trình từ Clean -> Report
+all: clean init compile run_regression merge_coverage report
 
-# =============================================================================
-# Main Flow
-# =============================================================================
-
-all: clean compile run_regression merge_coverage report
-
-# =============================================================================
-# Compile
-# =============================================================================
-
-compile:
-	@echo "=== Compiling Design & TB ==="
+# Khởi tạo thư viện
+init:
 	vlib work
 	vmap work work
 
+# Biên dịch mã nguồn kèm cờ capture coverage
+compile:
+	vlib work
+	vmap work work
 	vlog -sv +acc \
 		-timescale=1ns/1ps \
-		+define+UVM \
 		$(COV_COMPILE) \
+		-suppress 2181,2218,2220 \
 		-f $(RTL_F) \
-		-f $(TB_F) \
-		-l compile.log \
-		-suppress 2181,2218,2220
+		-f $(TB_F)
 
-# =============================================================================
-# Single Test Run
-# Example:
-# make sim TESTNAME=axi4_write_test
-# =============================================================================
-
-sim: compile
+# ------------------------------------------------------------------------------
+# Chạy 1 simulation đơn lẻ (Dùng để debug nhanh hoặc chạy chỉ 1 test cụ thể)
+# Ví dụ: make sim TEST_NAME=apb_stress_test
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# Chạy 1 simulation đơn lẻ: Show log trực tiếp ra Terminal + Vẫn lưu vào file
+# ------------------------------------------------------------------------------
+# ==============================================================================
+# 1. CHẠY SIMULATION ẨN (BATCH/CONSOLE MODE) - Chỉ show log ra Terminal
+# Ví dụ: make sim TEST_NAME=apb_write_test
+# ==============================================================================
+sim:
 	@mkdir -p single_run_logs
+	vsim -c $(COV_SIM) \
+		$(TOP_MODULE) \
+		+UVM_TESTNAME=$(TEST_NAME) \
+		-do "coverage save -onexit $(TEST_NAME).ucdb; run -all; quit -f" \
+		| tee single_run_logs/$(TEST_NAME).log
 
-	vsim -c \
-		$(COV_SIM) \
-		work.$(TOP) \
-		+UVM_TESTNAME=$(TESTNAME) \
-		+UVM_VERBOSITY=UVM_MEDIUM \
-		-do "run -all; coverage save -onexit $(TESTNAME).ucdb; quit -f" \
-		| tee single_run_logs/$(TESTNAME).log
-
-# =============================================================================
-# GUI + Wave
-# Example:
-# make wave TESTNAME=axi4_write_test
-# =============================================================================
-
-wave: compile
-	vsim \
-		work.$(TOP) \
-		+UVM_TESTNAME=$(TESTNAME) \
-		+UVM_VERBOSITY=UVM_MEDIUM \
-		-do "add wave -r /*; run -all"
-
-# =============================================================================
-# Regression
-# =============================================================================
-
+# ==============================================================================
+# 2. CHẠY SIMULATION HIỆN ĐỒ HỌA (GUI MODE) - Bật giao diện xem Sóng (Waveform)
+# Ví dụ: make wave TEST_NAME=apb_write_test
+# ==============================================================================
+wave:
+	@mkdir -p single_run_logs
+	vsim $(COV_SIM) \
+		$(TOP_MODULE) \
+		+UVM_TESTNAME=$(TEST_NAME) \
+		-do "add wave -r /*; run -all; wave zoom full;" \
+		| tee single_run_logs/$(TEST_NAME).log
+# ------------------------------------------------------------------------------
+# TARGET REGRESSION CHUYÊN NGHIỆP: Vòng lặp lồng lặp (Quét Testlist x Quét Seeds)
+# ------------------------------------------------------------------------------
 run_regression:
-	@echo "==============================================="
-	@echo " Running Regression"
-	@echo "==============================================="
-
-	@mkdir -p regression_logs
-	@mkdir -p $(COV_DIR)
-
+	@echo "======================================================"
+	@echo "=== STARTING REGRESSION: $(NUM_SEEDS) SEEDS PER TEST ==="
+	@echo "======================================================"
+	@mkdir -p regression_logs $(COV_MERGE_DIR)
 	@for test in $(TEST_LIST); do \
-		echo ""; \
-		echo ">>> Running $$test"; \
-		for seed in $$(seq 1 $(NUM_SEEDS)); do \
-			echo "    Seed $$seed"; \
-			vsim -c \
-				$(COV_SIM) \
-				work.$(TOP) \
+		echo "----------------------------------------------------"; \
+		echo " 🚀 Running Testcase: $$test"; \
+		echo "----------------------------------------------------"; \
+		for i in $$(seq 1 $(NUM_SEEDS)); do \
+			echo "   → Seed $$i ..."; \
+			vsim -c $(COV_SIM) \
+				$(TOP_MODULE) \
 				+UVM_TESTNAME=$$test \
-				+UVM_SEED=$$seed \
-				-do "run -all; coverage save $(COV_DIR)/$${test}_seed$$seed.ucdb; quit -f" \
-				> regression_logs/$${test}_seed$$seed.log 2>&1; \
+				+UVM_SEED=$$i \
+				-do "coverage save -onexit $(COV_MERGE_DIR)/$${test}_seed$$i.ucdb; run -all; quit -f" \
+				> regression_logs/$${test}_seed$$i.log 2>&1; \
 		done; \
 	done
+	@echo "======================================================"
+	@echo "===         REGRESSION RUNS COMPLETED              ==="
+	@echo "======================================================"
 
-# =============================================================================
-# Coverage Merge
-# =============================================================================
-
+# Gộp tất cả các file UCDB của từng test/seed thành một file duy nhất
 merge_coverage:
 	@echo "=== Merging Coverage ==="
-
-	@rm -f $(COV_DIR)/merged.ucdb
-
-	@if ls $(COV_DIR)/*.ucdb >/dev/null 2>&1; then \
-		vcover merge \
-			-out $(COV_DIR)/merged.ucdb \
-			$(COV_DIR)/*.ucdb; \
+	@rm -f $(COV_MERGE_DIR)/merged.ucdb
+	@if ls $(COV_MERGE_DIR)/*.ucdb >/dev/null 2>&1; then \
+		vcover merge -out $(COV_MERGE_DIR)/merged.ucdb $(COV_MERGE_DIR)/*.ucdb; \
+		echo "Merge completed successfully! Created: $(COV_MERGE_DIR)/merged.ucdb"; \
 	else \
-		echo "No UCDB files found"; \
+		echo "ERROR: No .ucdb files found in $(COV_MERGE_DIR)/! Run regression first."; \
 		exit 1; \
 	fi
 
-# =============================================================================
-# Coverage Report
-# =============================================================================
-
+# Xuất báo cáo chi tiết (HTML Report + Summary Text)
 report:
-	@echo "=== Generating Coverage Report ==="
+	@echo "=== Generating HTML Coverage Report ==="
+	vcover report -html -htmldir $(COV_REPORT) -verbose $(COV_MERGE_DIR)/merged.ucdb
+	@echo "=== Generating Summary Text Report ==="
+	vcover report -details $(COV_MERGE_DIR)/merged.ucdb > summary.txt
+	@echo "Report generation finished. Check directory: $(COV_REPORT)/"
 
-	vcover report \
-		-html \
-		-htmldir $(COV_REPORT) \
-		-details \
-		$(COV_DIR)/merged.ucdb
-
-	vcover report \
-		-details \
-		$(COV_DIR)/merged.ucdb \
-		> coverage_summary.txt
-
-# =============================================================================
-# Quick Commands
-# =============================================================================
-
-run: sim
-
-test: clean sim
-
-# =============================================================================
-# Clean
-# =============================================================================
-
+# Dọn dẹp môi trường sạch sẽ trước khi chạy lượt mới
 clean:
-	@echo "=== Cleaning ==="
-
-	rm -rf work
-	rm -rf transcript
-	rm -rf vsim.wlf
-
-	rm -rf regression_logs
-	rm -rf single_run_logs
-
-	rm -rf $(COV_DIR)
-	rm -rf $(COV_REPORT)
-
+	@echo "=== Cleaning environment ==="
+	rm -rf work vsim.wlf transcript
+	rm -rf regression_logs single_run_logs
+	rm -rf $(COV_MERGE_DIR) $(COV_REPORT) summary.txt
 	rm -f *.ucdb
-	rm -f *.log
-	rm -f coverage_summary.txt
 
-.PHONY: \
-	all \
-	compile \
-	sim \
-	wave \
-	run \
-	test \
-	run_regression \
-	merge_coverage \
-	report \
-	clean
+.PHONY: all init compile sim run_regression merge_coverage report clean

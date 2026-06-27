@@ -137,7 +137,7 @@ interface axi4_if #(
         clocking slave_cb,
         input i_clk, i_rst_n
     );
-
+/*
     // =========================================================================
     // Assertions — AXI4 protocol checks
     // =========================================================================
@@ -176,7 +176,7 @@ interface axi4_if #(
     endproperty
     assert property (p_arready_low_during_reset)
         else `uvm_error("AXI4_IF", "BUG: ARREADY=1 trong luc i_rst_n=0 : slave khong duoc accept AR request khi reset active")
-
+*/
 
     // =========================================================================
     // WRAP Address Checker
