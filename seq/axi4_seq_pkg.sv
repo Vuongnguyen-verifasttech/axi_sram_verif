@@ -54,7 +54,7 @@ package axi4_seq_pkg;
       `include "../seq/sequences/axi4_multi_outstanding_seq.sv"
 
       `include "../seq/sequences/axi4_random_mixed_seq.sv"
-      `include "../seq/sequences/axi4_rtl_bug001.sv"
+      `include "../seq/sequences/axi4_rtl_bug001_seq.sv"
       
  
 
