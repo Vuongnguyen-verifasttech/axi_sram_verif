@@ -55,19 +55,44 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
         wait (vif.i_rst_n === 1'b1);
         @(posedge vif.i_clk);
 
-        forever begin
-            axi4_rd_seq_item tr;
-            seq_item_port.get_next_item(tr);
+        fork
 
-            `uvm_info(get_type_name(),
-                      $sformatf("Driving: %s", tr.convert2string()),
-                      UVM_MEDIUM)
+            // ------------------------------------------------------------------
+            // Thread 1: Transaction loop
+            // ------------------------------------------------------------------
+            forever begin
+                axi4_rd_seq_item tr;
+                seq_item_port.get_next_item(tr);
 
-            drive_ar_channel(tr);
-            drive_r_channel(tr);
+                `uvm_info(get_type_name(),
+                          $sformatf("Driving: %s", tr.convert2string()),
+                          UVM_MEDIUM)
 
-            seq_item_port.item_done();
-        end
+                drive_ar_channel(tr);
+                drive_r_channel(tr);
+
+                seq_item_port.item_done();
+            end
+
+            // ------------------------------------------------------------------
+            // Thread 2: Reset monitor
+            // Deassert tất cả signals ngay khi rst_n=0
+            // ------------------------------------------------------------------
+            forever begin
+                @(negedge vif.i_rst_n);
+                `uvm_info(get_type_name(),
+                          "Reset detected — deassert all RD signals",
+                          UVM_MEDIUM)
+                reset_rd_signals();
+                wait (vif.i_rst_n === 1'b1);
+                @(posedge vif.i_clk);
+                `uvm_info(get_type_name(),
+                          "Reset released — RD driver ready",
+                          UVM_MEDIUM)
+            end
+
+        join_none
+
     endtask
 
     // =========================================================================
