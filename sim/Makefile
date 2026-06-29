@@ -23,7 +23,7 @@ TEST_LIST   ?= axi4_incr_burst_rd_test \
 NUM_SEEDS    ?= 3
 
 # Tên testcase mặc định khi chạy đơn lẻ (lệnh: make sim)
-TEST_NAME    ?= axi4_rtl_bug001_test
+TEST_NAME    ?= axi4_reset_sanity_test
 
 # Chuỗi target chạy tự động toàn bộ quy trình từ Clean -> Report
 all: clean init compile run_regression merge_coverage report
