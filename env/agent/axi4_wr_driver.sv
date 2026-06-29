@@ -50,7 +50,7 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // =========================================================================
     // Run Phase (Đã được cấu trúc lại cho Reset)
     // =========================================================================
-    vvirtual task run_phase(uvm_phase phase);
+    virtual task run_phase(uvm_phase phase);
         fork
             watchdog_reset();
             main_drive_loop();
