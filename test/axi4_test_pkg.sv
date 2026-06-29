@@ -23,6 +23,7 @@ package axi4_test_pkg;
     `include "axi4_concurrent_rw_bug_test.sv"
     `include "axi4_backpressure_test.sv"
     `include "axi4_multi_outstanding_test.sv"
+    `include "axi4_random_mixed_test.sv"
    
     
 

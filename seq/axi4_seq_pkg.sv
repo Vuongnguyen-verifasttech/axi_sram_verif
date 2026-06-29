@@ -52,16 +52,10 @@ package axi4_seq_pkg;
       `include "../seq/sequences/axi4_backpressure_seq.sv"
       
       `include "../seq/sequences/axi4_multi_outstanding_seq.sv"
-    // =====================================================================
-    // Mixed Sequences
-    // =====================================================================
-   // `include "sequences/axi_random_mixed_seq.sv"
-    //`include "sequences/axi_concurrent_rw_seq.sv"
 
-    // =====================================================================
-    // Reset Sequence
-    // =====================================================================
-    //`include "sequences/axi4_reset_seq.sv"
+      `include "../seq/sequences/axi4_random_mixed_seq.sv
+      
+ 
 
 
 
