@@ -26,9 +26,10 @@ virtual task body();
         end
 
         begin
-            // Wait until write is in progress
-            repeat (5)
-                @(posedge vseqr.vif.i_clk);
+// MỚI — chờ AW handshake xảy ra rồi mới inject reset
+@(posedge vseqr.vif.i_clk iff (vseqr.vif.awvalid && vseqr.vif.awready));
+// Thêm vài cycle nữa để vào W channel
+repeat (3) @(posedge vseqr.vif.i_clk);
 
             `uvm_info(get_type_name(),
                       "Inject reset during WRITE transaction",
