@@ -402,14 +402,21 @@ class axi4_coverage extends uvm_component;
         cg_backpressure.sample();
         cg_outstanding.sample();
         cg_reset_burst.sample();
-        cg_arbitration.sample();
+
+        // Guard: cg_arbitration cross dùng cả wr_tr lẫn rd_tr
+        // chỉ sample khi cả 2 đều có giá trị
+        if (rd_tr != null)
+            cg_arbitration.sample();
     endfunction
 
     virtual function void write_rd(axi4_rd_seq_item tr);
         rd_tr = tr;
 
         cg_read.sample();
-        cg_arbitration.sample();
+
+        // Guard: chỉ sample arbitration khi wr_tr đã có giá trị
+        if (wr_tr != null)
+            cg_arbitration.sample();
 
         // Integrity: chỉ sample khi read cùng địa chỉ với write trước đó
         if (wr_pending && wr_tr != null &&
