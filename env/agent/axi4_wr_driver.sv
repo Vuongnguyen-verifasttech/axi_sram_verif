@@ -12,8 +12,8 @@
 //   - Transaction completes only after BRESP is received
 //
 // Known limitations / future improvements:
-//   1. No reset recovery during active transaction.
-//      Current implementation assumes reset only occurs before test starts.
+//   1. Reset recovery supported — Thread 2 in run_phase monitors rst_n
+//      and deasserts all signals immediately when reset is asserted.
 //
 //   2. Direct interface access is used.
 //      Future version should migrate to clocking blocks to eliminate
@@ -77,33 +77,55 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
         @(posedge vif.i_clk);
 
         reset_wr_signals();
+        wait (vif.i_rst_n === 1'b1);
+        @(posedge vif.i_clk);
 
-       wait (vif.i_rst_n === 1'b1);
-    @(posedge vif.i_clk);  // Wait for DUT & if stable 
+        fork
 
-        forever begin
+            // ------------------------------------------------------------------
+            // Thread 1: Transaction loop
+            // ------------------------------------------------------------------
+            forever begin
 
-            axi4_wr_seq_item tr;
+                axi4_wr_seq_item tr;
 
-            seq_item_port.get_next_item(tr);
+                seq_item_port.get_next_item(tr);
 
-            `uvm_info(get_type_name(),
-                      $sformatf("Driving: %s",
-                                tr.convert2string()),
-                      UVM_MEDIUM)
+                `uvm_info(get_type_name(),
+                          $sformatf("Driving: %s",
+                                    tr.convert2string()),
+                          UVM_MEDIUM)
 
-            // AW và W chạy song song , do axi cho phep AW, va W hoat dong // nen al dung fork join 
-            fork
-                drive_aw_channel(tr);
-                drive_w_channel(tr);
-            join
+                fork
+                    drive_aw_channel(tr);
+                    drive_w_channel(tr);
+                join
 
-            // Chờ BRESP
-            drive_b_channel(tr);
+                drive_b_channel(tr);
 
-            seq_item_port.item_done();
+                seq_item_port.item_done();
 
-        end
+            end
+
+            // ------------------------------------------------------------------
+            // Thread 2: Reset monitor
+            // Deassert tất cả signals ngay khi rst_n=0
+            // Đảm bảo DUT không nhận data rác sau reset
+            // ------------------------------------------------------------------
+            forever begin
+                @(negedge vif.i_rst_n);
+                `uvm_info(get_type_name(),
+                          "Reset detected — deassert all WR signals",
+                          UVM_MEDIUM)
+                reset_wr_signals();
+                wait (vif.i_rst_n === 1'b1);
+                @(posedge vif.i_clk);
+                `uvm_info(get_type_name(),
+                          "Reset released — WR driver ready",
+                          UVM_MEDIUM)
+            end
+
+        join_none
 
     endtask
 
