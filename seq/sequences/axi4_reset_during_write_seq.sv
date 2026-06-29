@@ -22,7 +22,7 @@ virtual task body();
     fork
 
         begin
-            wr_seq.start(vseqr);
+            wr_seq.start(vseqr.wr_seqr);
         end
 
         begin
