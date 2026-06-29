@@ -35,79 +35,53 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
             `uvm_fatal("WR_DRV_VIF", "Cannot get vif from config_db")
     endfunction
 
-    // =========================================================================
-    // Run Phase (Đã được cấu trúc lại cho Reset)
-    // =========================================================================
-    virtual task run_phase(uvm_phase phase);
-        axi4_wr_seq_item tr;
-
-        forever begin
-            // 1. Dọn dẹp Interface và đợi rst_n = 1
-            reset_wr_signals();
-            wait (vif.i_rst_n === 1'b1);
-            @(posedge vif.i_clk);
-            `uvm_info(get_type_name(), "Reset released — WR driver ready", UVM_MEDIUM)
-
-            fork
-                // --------------------------------------------------------------
-                // Thread 1: Transaction loop
-                // --------------------------------------------------------------
-                begin
-                    forever begin
-                        seq_item_port.get_next_item(tr);
-
-                        `uvm_info(get_type_name(),
-                                  $sformatf("Driving: %s", tr.convert2string()),
-                                  UVM_MEDIUM)
-
-                        fork
-                            drive_aw_channel(tr);
-                            drive_w_channel(tr);
-                        join
-
-                        drive_b_channel(tr);
-
-                        seq_item_port.item_done();
-                        tr = null; // Đã chạy xong trót lọt
-                    end
-                end
-
-                // --------------------------------------------------------------
-                // Thread 2: Reset monitor
-                // --------------------------------------------------------------
-                begin
-                    wait (vif.i_rst_n === 1'b0);
-                    `uvm_info(get_type_name(), "Reset detected — aborting current transaction", UVM_MEDIUM)
-                end
-            join_any
-
-            // Giết luồng Transaction (Thread 1) nếu Thread 2 (Reset) bắt được i_rst_n == 0
-            disable fork;
-
-            // Xử lý dọn dẹp port của Sequencer nếu trans đang chạy dở bị kill
-            if (tr != null) begin
-                seq_item_port.item_done();
-                tr = null;
-            end
-        end
-    endtask
-
-    // =========================================================================
-    // Reset outputs
-    // =========================================================================
+    // Reset tín hiệu về default - Độc lập hoàn toàn
     virtual task reset_wr_signals();
         vif.master_cb.awvalid <= 1'b0;
+        vif.master_cb.wvalid  <= 1'b0;
+        vif.master_cb.wlast   <= 1'b0;
+        vif.master_cb.bready  <= 1'b1;
         vif.master_cb.awaddr  <= '0;
         vif.master_cb.awid    <= '0;
         vif.master_cb.awlen   <= '0;
         vif.master_cb.awburst <= 2'b01;
-
-        vif.master_cb.wvalid  <= 1'b0;
-        vif.master_cb.wdata   <= '0;
-        vif.master_cb.wlast   <= 1'b0;
-
-        vif.master_cb.bready  <= 1'b1;
     endtask
+
+    // =========================================================================
+    // Run Phase (Đã được cấu trúc lại cho Reset)
+    // =========================================================================
+    vvirtual task run_phase(uvm_phase phase);
+        fork
+            watchdog_reset();
+            main_drive_loop();
+        join
+    endtask
+
+    // Luồng giám sát Reset (Watchdog)
+    virtual task watchdog_reset();
+        forever begin
+            wait(vif.i_rst_n === 1'b0);
+            disable main_drive_loop; // Ép dừng luồng chính tức thì
+            reset_wr_signals();
+            wait(vif.i_rst_n === 1'b1);
+            @(posedge vif.i_clk);
+        end
+    endtask
+
+    // Luồng chính (Chỉ chứa logic AXI4 thuần túy)
+    virtual task main_drive_loop();
+        axi4_wr_seq_item tr;
+        forever begin
+            seq_item_port.get_next_item(tr);
+            fork
+                drive_aw_channel(tr);
+                drive_w_channel(tr);
+            join
+            drive_b_channel(tr);
+            seq_item_port.item_done();
+        end
+    endtask
+
 
     // =========================================================================
     // Drive AW Channel (Logic gốc)
@@ -115,26 +89,14 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     virtual task drive_aw_channel(axi4_wr_seq_item tr);
         `uvm_info("DBG_AW","ENTER drive_aw_channel", UVM_NONE)
 
-        // Setup phase
         vif.master_cb.awaddr  <= tr.awaddr;
         vif.master_cb.awid    <= tr.awid;
         vif.master_cb.awlen   <= tr.awlen;
         vif.master_cb.awburst <= tr.awburst;
         vif.master_cb.awvalid <= 1'b1;
-
         @(posedge vif.i_clk);
-        while (!vif.master_cb.awready) begin
-            if (!vif.i_rst_n) begin
-                `uvm_warning("AW_RST", "Reset detected while waiting AWREADY")
-                vif.master_cb.awvalid <= 1'b0;
-                vif.master_cb.awaddr  <= '0;
-                return;
-            end
-            @(posedge vif.i_clk);
-        end
-
+        while (!vif.master_cb.awready) @(posedge vif.i_clk);
         vif.master_cb.awvalid <= 1'b0;
-        vif.master_cb.awaddr  <= '0;
 
         `uvm_info(get_type_name(),
                   $sformatf("AW done: AWADDR=0x%0h AWID=0x%0h AWLEN=%0d", tr.awaddr, tr.awid, tr.awlen),
@@ -166,46 +128,21 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
             vif.master_cb.wdata  <= tr.wdata[i];
             vif.master_cb.wlast  <= (i == int'(tr.awlen));
             vif.master_cb.wvalid <= 1'b1;
-
-            // Wait handshake
             @(posedge vif.i_clk);
-            while (!vif.master_cb.wready) begin
-                if (!vif.i_rst_n) begin
-                    `uvm_warning("W_RST", "Reset detected while waiting WREADY")
-                    vif.master_cb.wvalid <= 1'b0;
-                    vif.master_cb.wlast  <= 1'b0;
-                    return;
-                end
-                @(posedge vif.i_clk);
-            end
-
+            while (!vif.master_cb.wready) @(posedge vif.i_clk);
             vif.master_cb.wvalid <= 1'b0;
-            `uvm_info(get_type_name(), $sformatf("W beat[%0d]: WDATA=0x%0h WLAST=%0b", i, tr.wdata[i], (i == int'(tr.awlen))), UVM_HIGH)
         end
-
         vif.master_cb.wlast <= 1'b0;
     endtask
 
     // =========================================================================
     // Drive B Channel (Logic gốc)
     // =========================================================================
-    virtual task drive_b_channel(axi4_wr_seq_item tr);
+   virtual task drive_b_channel(axi4_wr_seq_item tr);
         @(posedge vif.i_clk);
-
-        while (!vif.master_cb.bvalid) begin
-            if (!vif.i_rst_n) begin
-                `uvm_warning("B_RST", "Reset detected while waiting BVALID")
-                return;
-            end
-            @(posedge vif.i_clk);
-        end
-        
-        `uvm_info("DRV_B", $sformatf("@%0t bvalid=%0b bready=%0b bid=%0h", $time, vif.master_cb.bvalid, vif.master_cb.bready, vif.master_cb.bid), UVM_NONE)
-        
+        while (!vif.master_cb.bvalid) @(posedge vif.i_clk);
         tr.bresp = vif.master_cb.bresp;
         tr.bid   = vif.master_cb.bid;
-
-        `uvm_info(get_type_name(), $sformatf("B done: BID=0x%0h BRESP=%0b", tr.bid, tr.bresp), UVM_HIGH)
     endtask
 
 endclass : axi4_wr_driver
