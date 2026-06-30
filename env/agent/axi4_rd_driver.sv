@@ -48,12 +48,13 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
 
     virtual task reset_rd_signals();
 
-        // Blocking assign trực tiếp lên net — có hiệu lực ngay lập tức
+        // Blocking assign trực tiếp lên net — có hiệu lực ngay lập tức,
+        // không chờ posedge clock kế tiếp (tránh data rác trong cycle reset đầu)
         vif.arvalid = 1'b0;
         vif.rready  = 1'b0;
         vif.araddr  = '0;
 
-        // Đồng bộ clocking block để tránh glitch
+        // Đồng bộ clocking block để tránh nó ghi đè lại giá trị cũ
         vif.master_cb.arvalid <= 1'b0;
         vif.master_cb.rready  <= 1'b0;
         vif.master_cb.araddr  <= '0;
