@@ -144,7 +144,7 @@ class axi4_reset_during_burst_seq extends axi4_base_seq;
                           beat_count_after_reset))
         else
             `uvm_info(get_type_name(),
-                "PASS: không có W beat nào xuất hiện trong lúc reset active",
+                "PASS: khong co beat nao xuat hien reset active",
                 UVM_LOW)
 
         //-----------------------------------------------------------------
