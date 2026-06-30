@@ -27,7 +27,7 @@ virtual task body();
 
         begin
             // Wait until read is in progress
-            repeat (5)
+            repeat (20)
                 @(posedge vseqr.vif.i_clk);
 
             `uvm_info(get_type_name(),
