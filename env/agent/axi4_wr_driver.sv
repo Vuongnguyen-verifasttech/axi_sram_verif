@@ -12,8 +12,9 @@
 //   - Transaction completes only after BRESP is received
 //
 // Known limitations / future improvements:
-//   1. Reset recovery supported — Thread 2 in run_phase monitors rst_n
-//      and deasserts all signals immediately when reset is asserted.
+//   1. Reset recovery: watchdog_reset() uses "disable main_drive_loop"
+//      to KILL the transaction loop instantly when reset asserts —
+//      no race condition between reset handling and in-flight transaction.
 //
 //   2. Direct interface access is used.
 //      Future version should migrate to clocking blocks to eliminate
@@ -81,52 +82,55 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
         @(posedge vif.i_clk);
 
         fork
+            watchdog_reset();
+            main_drive_loop();
+        join
+    endtask
 
-            // ------------------------------------------------------------------
-            // Thread 1: Transaction loop
-            // ------------------------------------------------------------------
-            forever begin
+    // =========================================================================
+    // Watchdog: kill main_drive_loop NGAY khi reset assert — không race condition
+    // =========================================================================
+    virtual task watchdog_reset();
+        forever begin
+            wait (vif.i_rst_n === 1'b0);
+            disable main_drive_loop;
+            `uvm_info(get_type_name(),
+                      "Reset detected — main_drive_loop killed, deasserting signals",
+                      UVM_MEDIUM)
+            reset_wr_signals();
+            wait (vif.i_rst_n === 1'b1);
+            @(posedge vif.i_clk);
+            `uvm_info(get_type_name(),
+                      "Reset released — WR driver ready",
+                      UVM_MEDIUM)
+        end
+    endtask
 
-                axi4_wr_seq_item tr;
+    // =========================================================================
+    // Main transaction loop
+    // =========================================================================
+    virtual task main_drive_loop();
+        forever begin
 
-                seq_item_port.get_next_item(tr);
+            axi4_wr_seq_item tr;
 
-                `uvm_info(get_type_name(),
-                          $sformatf("Driving: %s",
-                                    tr.convert2string()),
-                          UVM_MEDIUM)
+            seq_item_port.get_next_item(tr);
 
-                fork
-                    drive_aw_channel(tr);
-                    drive_w_channel(tr);
-                join
+            `uvm_info(get_type_name(),
+                      $sformatf("Driving: %s",
+                                tr.convert2string()),
+                      UVM_MEDIUM)
 
-                drive_b_channel(tr);
+            fork
+                drive_aw_channel(tr);
+                drive_w_channel(tr);
+            join
 
-                seq_item_port.item_done();
+            drive_b_channel(tr);
 
-            end
+            seq_item_port.item_done();
 
-            // ------------------------------------------------------------------
-            // Thread 2: Reset monitor
-            // Deassert tất cả signals ngay khi rst_n=0
-            // Đảm bảo DUT không nhận data rác sau reset
-            // ------------------------------------------------------------------
-            forever begin
-                @(negedge vif.i_rst_n);
-                `uvm_info(get_type_name(),
-                          "Reset detected — deassert all WR signals",
-                          UVM_MEDIUM)
-                reset_wr_signals();
-                wait (vif.i_rst_n === 1'b1);
-                @(posedge vif.i_clk);
-                `uvm_info(get_type_name(),
-                          "Reset released — WR driver ready",
-                          UVM_MEDIUM)
-            end
-
-        join_none
-
+        end
     endtask
 
     // =========================================================================
