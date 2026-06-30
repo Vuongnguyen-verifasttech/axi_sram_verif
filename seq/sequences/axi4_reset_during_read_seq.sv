@@ -13,6 +13,12 @@ virtual task body();
 
     super.body();
 
+    // Đảm bảo power-on reset (từ tb_top) đã hoàn toàn settle
+    // trước khi bắt đầu transaction thử nghiệm của test này.
+    // Tránh power-on reset chồng chéo với AR handshake gây sequence
+    // bị "chết" sớm mà không phải do logic test inject.
+    repeat (10) @(posedge vseqr.vif.i_clk);
+
     rd_seq  = axi4_single_rd_seq::type_id::create("rd_seq");
     rst_seq = axi4_reset_seq::type_id::create("rst_seq");
 
