@@ -31,6 +31,11 @@ class axi4_reset_during_burst_seq extends axi4_base_seq;
 
         super.body();
 
+        // Đảm bảo power-on reset (từ tb_top) đã hoàn toàn settle trước khi
+        // bắt đầu burst thử nghiệm — tránh power-on reset chồng chéo với
+        // burst write làm sai lệch beat_count tracking.
+        repeat (10) @(posedge vseqr.vif.i_clk);
+
         //-----------------------------------------------------------------
         // Build 1 burst write item: 16 beat (awlen=15), INCR
         //-----------------------------------------------------------------
