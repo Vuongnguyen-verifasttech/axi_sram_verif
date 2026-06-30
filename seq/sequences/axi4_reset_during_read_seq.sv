@@ -22,23 +22,23 @@ virtual task body();
     fork
 
         begin
-            rd_seq.start(vseqr);
+            rd_seq.start(vseqr.rd_seqr);
         end
 
         begin
-            // Wait until write is in progress
-            repeat (20)
+            // Wait until read is in progress
+            repeat (5)
                 @(posedge vseqr.vif.i_clk);
 
             `uvm_info(get_type_name(),
-                      "Inject reset during WRITE transaction",
+                      "Inject reset during READ transaction",
                       UVM_LOW)
 
             rst_seq.start(vseqr);
         end
 
     join_any
-    // Sát tử luồng còn lại (wr_seq) đang bị kẹt lửng lơ
+    // Kill luồng còn lại (rd_seq) đang bị kẹt lửng lơ
     disable fork; 
 
     //-----------------------------------------
@@ -77,9 +77,15 @@ virtual task body();
         `uvm_error(get_type_name(),
                    "R FIFO not empty after reset")
 
-    if (vseqr.vif.bfifo_empty !== 1'b1)
+    // Write path không tham gia test này nhưng vẫn check
+    // để đảm bảo reset không gây side-effect chéo channel
+    if (vseqr.vif.awfifo_empty !== 1'b1)
         `uvm_error(get_type_name(),
-                   "B FIFO not empty after reset")
+                   "AW FIFO not empty after reset (cross-channel side effect)")
+
+    if (vseqr.vif.wfifo_empty !== 1'b1)
+        `uvm_error(get_type_name(),
+                   "W FIFO not empty after reset (cross-channel side effect)")
 
     `uvm_info(get_type_name(),
               "Reset during read test PASSED",
