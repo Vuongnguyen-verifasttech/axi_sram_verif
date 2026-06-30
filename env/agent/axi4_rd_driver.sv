@@ -99,6 +99,9 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     virtual task drive_ar_channel(axi4_rd_seq_item tr);
         `uvm_info("DBG_AR", $sformatf("ENTER drive_ar_channel ARADDR=0x%0h", tr.araddr), UVM_NONE)
         vif.master_cb.araddr  <= tr.araddr;
+        vif.master_cb.arid    <= tr.arid;
+        vif.master_cb.arlen   <= tr.arlen;
+        vif.master_cb.arburst <= tr.arburst;
         vif.master_cb.arvalid <= 1'b1;
         @(posedge vif.i_clk);
         while (!vif.master_cb.arready) @(posedge vif.i_clk);
