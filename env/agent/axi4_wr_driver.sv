@@ -134,6 +134,23 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // =========================================================================
     virtual task reset_wr_signals();
 
+        // Dùng BLOCKING assign trực tiếp lên net (không qua clocking block)
+        // để có hiệu lực NGAY LẬP TỨC — không chờ posedge clock kế tiếp.
+        // Tránh data rác (wdata/wvalid cũ) bị DUT sample trong cycle reset đầu tiên.
+        vif.awvalid = 1'b0;
+        vif.awaddr  = '0;
+        vif.awid    = '0;
+        vif.awlen   = '0;
+        vif.awburst = 2'b01;
+
+        vif.wvalid  = 1'b0;
+        vif.wdata   = '0;
+        vif.wlast   = 1'b0;
+
+        vif.bready  = 1'b0;
+
+        // Đồng bộ lại giá trị clocking block để tránh glitch khi
+        // master_cb output #1 apply đè lên giá trị vừa force ở trên
         vif.master_cb.awvalid <= 1'b0;
         vif.master_cb.awaddr  <= '0;
         vif.master_cb.awid    <= '0;
@@ -144,7 +161,7 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
         vif.master_cb.wdata   <= '0;
         vif.master_cb.wlast   <= 1'b0;
 
-        vif.master_cb.bready  <= 1'b1;
+        vif.master_cb.bready  <= 1'b0;
 
     endtask
 

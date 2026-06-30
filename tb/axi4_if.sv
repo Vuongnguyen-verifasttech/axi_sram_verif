@@ -127,7 +127,16 @@ interface axi4_if #(
     // =========================================================================
     modport master (
         clocking master_cb,
-        input i_clk, i_rst_n
+        input i_clk, i_rst_n,
+        // Direct net access — CHỈ dùng để force-reset signals về 0 ngay lập tức
+        // khi i_rst_n=0, bypass clocking block skew (#1) để tránh data rác
+        // bị đẩy vào DUT trong cycle reset đầu tiên.
+        // KHÔNG dùng các signal này cho transaction bình thường — luôn dùng master_cb.
+        output awvalid, awaddr, awburst, awlen, awid,
+        output wvalid, wdata, wlast,
+        output bready,
+        output arvalid, araddr, arburst, arlen, arid,
+        output rready
     );
 
     // =========================================================================

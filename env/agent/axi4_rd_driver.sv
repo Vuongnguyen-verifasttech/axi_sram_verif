@@ -47,9 +47,17 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     endfunction
 
     virtual task reset_rd_signals();
+
+        // Blocking assign trực tiếp lên net — có hiệu lực ngay lập tức
+        vif.arvalid = 1'b0;
+        vif.rready  = 1'b0;
+        vif.araddr  = '0;
+
+        // Đồng bộ clocking block để tránh glitch
         vif.master_cb.arvalid <= 1'b0;
         vif.master_cb.rready  <= 1'b0;
         vif.master_cb.araddr  <= '0;
+
     endtask
 
     // =========================================================================
