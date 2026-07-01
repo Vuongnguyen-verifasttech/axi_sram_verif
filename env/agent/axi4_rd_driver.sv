@@ -65,11 +65,26 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // Run Phase
     // =========================================================================
     virtual task run_phase(uvm_phase phase);
+    forever begin
         fork
-            watchdog_reset();
-            main_drive_loop();
-        join
-    endtask
+            begin : DRV
+                main_drive_loop();
+            end
+            begin : RST_WAIT
+                wait(vif.i_rst_n === 1'b0);
+            end
+        join_any
+        disable fork;   // kill nhánh còn lại (main_drive_loop nếu reset xảy ra trước)
+
+        if (vif.i_rst_n === 1'b0) begin
+            `uvm_info(get_type_name(), "Reset detected -- main_drive_loop killed", UVM_MEDIUM)
+            reset_rd_signals();
+            wait(vif.i_rst_n === 1'b1);
+            @(posedge vif.i_clk);
+            `uvm_info(get_type_name(), "Reset released -- RD driver ready", UVM_MEDIUM)
+        end
+    end
+endtask
 
     virtual task watchdog_reset();
         forever begin
