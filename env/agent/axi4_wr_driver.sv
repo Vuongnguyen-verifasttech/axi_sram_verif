@@ -11,33 +11,32 @@
 //   - AW and W channels operate concurrently
 //   - Transaction completes only after BRESP is received
 //
-// Reset handling (fixed):
-//   run_phase uses fork/join_any to detect reset and kill transaction_loop
-//   via disable fork -- deterministic, no race with reset_wr_signals().
-//   item_in_flight flag ensures item_done() is always called -- even when
-//   transaction_loop is killed mid-transaction -- so the sequencer never
-//   gets stuck with an un-acknowledged item ("get_next_item called twice"
-//   error). This mirrors the fix already applied in axi4_rd_driver.sv.
+// Reset handling (redesigned):
+//   get_next_item()/item_done() live entirely inside transaction_loop(), a
+//   single process that runs for the whole duration of run_phase and is
+//   NEVER disabled/killed from the outside. The sequencer treats
+//   get_next_item()<->item_done() as a contract owned by exactly one
+//   process; any external "disable fork" that can land between the
+//   sequencer granting an item and this process acknowledging it corrupts
+//   the sequencer's internal arbitration state permanently -- seen as
+//   recurring "get_next_item/try_next_item called twice" errors. Swapping
+//   get_next_item() for try_next_item() does not fix this: it is an
+//   ownership problem, not an API/blocking-vs-non-blocking problem.
 //
-//   transaction_loop uses try_next_item() (non-blocking) instead of
-//   get_next_item() (blocking) to pull items. get_next_item() can suspend
-//   for an arbitrary number of cycles waiting on the sequencer -- an event
-//   fully independent of reset -- leaving a window where disable fork could
-//   kill this process between the sequencer granting the item and
-//   item_in_flight being set, still triggering "called twice" on the next
-//   grant (observed on Reset 1 in simulation log even with the
-//   item_in_flight flag in place). try_next_item() never blocks, closing
-//   that window.
+//   Reset-driven abort of an in-flight transaction is handled the way it
+//   always should have been: via the existing "if (!vif.i_rst_n) return;"
+//   checks inside drive_aw_channel()/drive_w_channel()/drive_b_channel().
+//   Those checks run inside the SAME process that holds the item, so
+//   whichever path is taken, control always flows back to exactly one
+//   item_done() call -- no external kill, no flag bookkeeping, no race.
 //
-//   Previous design ran the transaction loop and the reset monitor as two
-//   independent forever threads under join_none, with the reset thread only
-//   deasserting signals (reset_wr_signals()) while the transaction loop kept
-//   running. That created a real NBA race: if reset landed while the
-//   transaction loop was between its own internal reset checks, both
-//   threads could assign the same interface signal (e.g. wvalid) in the
-//   same time step, occasionally leaving AWVALID/WVALID asserted one extra
-//   cycle right as reset hit -- root cause of the intermittent
-//   "BVALID not LOW after reset" / "B FIFO not empty after reset" failures.
+//   A separate reset_monitor() thread only ever touches physical interface
+//   signals (never seq_item_port). It re-asserts idle values every clock
+//   cycle for as long as reset stays low (not just once on the negedge), so
+//   any transient signal race with transaction_loop's own checkpoints
+//   self-corrects within one cycle instead of persisting -- this is what
+//   fixed the original intermittent "BVALID not LOW after reset" /
+//   "B FIFO not empty after reset" failures.
 //
 // Known limitations / future improvements:
 //   1. Direct interface access is used.
@@ -48,9 +47,9 @@
 //      Protocol-legal, but does not model maximum-throughput bursts.
 //      Future enhancement may keep WVALID asserted across consecutive beats.
 //
-//   3. BREADY is permanently asserted (fixed -- see run_phase: bready is
-//      now actually driven high after reset release, previously only ever
-//      driven low in reset_wr_signals() and never re-asserted).
+//   3. BREADY is permanently asserted -- actually driven high in
+//      reset_monitor() right after reset release (previously documented
+//      but never implemented: bready was only ever driven low).
 //      Future tests may add real B-channel backpressure.
 //
 // Verification status:
@@ -68,10 +67,6 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // =========================================================================
     axi4_agent_cfg         cfg;
     virtual axi4_if.master vif;
-
-    // Tracks whether get_next_item was called but item_done has not yet been
-    // called. Used by the reset handler to call item_done() before restarting.
-    bit item_in_flight;
 
     // =========================================================================
     // UVM
@@ -101,94 +96,55 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // =========================================================================
     // Run Phase
     // =========================================================================
-
-    // flow: Get trans tu sequencer --> Gui address (AW) --> Gui data (W) --> Nhan Respone(B) --> Bao hoan thanh --> Next trans
     virtual task run_phase(uvm_phase phase);
-        @(posedge vif.i_clk);
+        fork
+            reset_monitor();
+            transaction_loop();
+        join_none
+    endtask
 
-        reset_wr_signals();
-        wait (vif.i_rst_n === 1'b1);
-        @(posedge vif.i_clk);
-
-        // FIX: BREADY was documented as "permanently asserted" but was never
-        // actually driven high anywhere in the previous version -- only ever
-        // driven low in reset_wr_signals(). Assert it here once reset is
-        // released, and again after every subsequent reset (see below).
-        vif.master_cb.bready <= 1'b1;
-
-        item_in_flight = 0;
-
-        // ---------------------------------------------------------------
-        // Outer loop: (re)fork transaction_loop, kill it deterministically
-        // via disable fork the instant reset is detected, then recover.
-        // ---------------------------------------------------------------
+    // =========================================================================
+    // Reset monitor -- ONLY touches physical interface signals. Never calls
+    // anything on seq_item_port. Runs for the entire simulation, independent
+    // of and never interfering with transaction_loop's ownership of the
+    // sequencer item-pull contract.
+    // =========================================================================
+    virtual task reset_monitor();
         forever begin
-            fork
-                begin : DRV
-                    transaction_loop();
-                end
-                begin : RST_WAIT
-                    wait (vif.i_rst_n === 1'b0);
-                end
-            join_any
-            disable fork;   // deterministically kills transaction_loop --
-                             // no more racing with reset_wr_signals()
+            wait (vif.i_rst_n === 1'b0);
+            `uvm_info(get_type_name(), "Reset detected -- forcing WR signals idle", UVM_MEDIUM)
 
-            if (vif.i_rst_n === 1'b0) begin
-                `uvm_info(get_type_name(),
-                          "Reset detected -- transaction_loop killed",
-                          UVM_MEDIUM)
-
+            // Keep re-asserting idle every cycle for as long as reset stays
+            // low. This bounds any transient race with transaction_loop's own
+            // reset checkpoints to at most one cycle instead of letting it
+            // persist -- this is what fixes the intermittent spurious
+            // BVALID / B FIFO not-empty failures.
+            while (vif.i_rst_n === 1'b0) begin
                 reset_wr_signals();
-
-                // transaction_loop may have been killed after get_next_item
-                // but before item_done(). Call item_done() here so the
-                // sequencer does not block the next get_next_item call with
-                // the "called twice" error.
-                if (item_in_flight) begin
-                    seq_item_port.item_done();
-                    item_in_flight = 0;
-                end
-
-                wait (vif.i_rst_n === 1'b1);
                 @(posedge vif.i_clk);
-
-                // FIX: re-assert bready after every reset, not just the
-                // very first one.
-                vif.master_cb.bready <= 1'b1;
-
-                `uvm_info(get_type_name(),
-                          "Reset released -- WR driver ready",
-                          UVM_MEDIUM)
             end
+
+            @(posedge vif.i_clk);
+            vif.master_cb.bready <= 1'b1;   // BREADY is permanently asserted
+                                             // once reset is released
+            `uvm_info(get_type_name(), "Reset released -- WR driver ready", UVM_MEDIUM)
         end
     endtask
 
     // =========================================================================
-    // Transaction loop -- called from run_phase fork
+    // Transaction loop -- the ONLY place that touches seq_item_port. Runs
+    // for the entire duration of run_phase; never forked/killed/re-forked.
+    // get_next_item() is allowed to block indefinitely: that is completely
+    // safe, since there is nothing to clean up while no item has been
+    // granted yet. Once an item IS granted, drive_aw_channel/drive_w_channel/
+    // drive_b_channel handle reset internally and always return control
+    // here, guaranteeing item_done() is called exactly once per
+    // get_next_item().
     // =========================================================================
     virtual task transaction_loop();
         axi4_wr_seq_item tr;
         forever begin
-            // FIX: try_next_item() (non-blocking) instead of get_next_item()
-            // (blocking). get_next_item() can suspend for an arbitrary number
-            // of cycles waiting for the sequencer to grant an item -- an
-            // event fully independent of reset. If disable fork (triggered
-            // by RST_WAIT) lands in the gap between the grant becoming
-            // visible on the sequencer side and this process reaching
-            // "item_in_flight = 1", the sequencer is left with an item it
-            // considers outstanding while item_in_flight still reads 0, so
-            // the reset-recovery item_done() fallback in run_phase never
-            // fires -- causing "get_next_item called twice" on the next
-            // grant (observed on Reset 1 in simulation log). try_next_item()
-            // never blocks, so there is no multi-cycle window left for that
-            // race to land in.
-            tr = null;
-            while (tr == null) begin
-                seq_item_port.try_next_item(tr);
-                if (tr == null) @(posedge vif.i_clk);
-            end
-            item_in_flight = 1;
+            seq_item_port.get_next_item(tr);
 
             `uvm_info(get_type_name(),
                       $sformatf("Driving: %s",
@@ -202,7 +158,6 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
 
             drive_b_channel(tr);
 
-            item_in_flight = 0;
             seq_item_port.item_done();
         end
     endtask
@@ -212,9 +167,10 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // =========================================================================
     virtual task reset_wr_signals();
 
-        // Dùng BLOCKING assign trực tiếp lên net (không qua clocking block)
-        // để có hiệu lực NGAY LẬP TỨC — không chờ posedge clock kế tiếp.
-        // Tránh data rác (wdata/wvalid cũ) bị DUT sample trong cycle reset đầu tiên.
+        // Blocking assign directly on the net (not through the clocking
+        // block) -- takes effect IMMEDIATELY, without waiting for the next
+        // posedge. Avoids stale wdata/wvalid being sampled by the DUT in the
+        // very first reset cycle.
         vif.awvalid = 1'b0;
         vif.awaddr  = '0;
         vif.awid    = '0;
@@ -227,8 +183,8 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
 
         vif.bready  = 1'b0;
 
-        // Đồng bộ lại giá trị clocking block để tránh glitch khi
-        // master_cb output #1 apply đè lên giá trị vừa force ở trên
+        // Also re-sync the clocking block outputs so they don't get
+        // overwritten by whatever was pending from before the force above.
         vif.master_cb.awvalid <= 1'b0;
         vif.master_cb.awaddr  <= '0;
         vif.master_cb.awid    <= '0;

@@ -4,19 +4,30 @@
 // axi4_rd_driver.sv
 // AXI4 Read Driver: AR channel + R channel (rready management)
 //
-// Reset handling:
-//   run_phase uses fork/join_any to detect reset and kill main_drive_loop.
-//   item_in_flight flag ensures item_done() is always called — even when
-//   main_drive_loop is killed mid-transaction — so the sequencer never gets
-//   stuck with an un-acknowledged item ("get_next_item called twice" error).
+// Reset handling (redesigned):
+//   get_next_item()/item_done() live entirely inside main_drive_loop(), a
+//   single process that runs for the whole duration of run_phase and is
+//   NEVER disabled/killed from the outside. This is deliberate: the
+//   sequencer treats get_next_item()<->item_done() as a contract owned by
+//   exactly one process. Any external "disable fork" that can land between
+//   the sequencer granting an item and this process acknowledging it
+//   corrupts the sequencer's internal arbitration state permanently (seen
+//   as recurring "get_next_item/try_next_item called twice" errors in sim,
+//   regardless of whether get_next_item() or try_next_item() is used --
+//   changing the API does not fix an ownership problem).
 //
-//   main_drive_loop uses try_next_item() (non-blocking) instead of
-//   get_next_item() (blocking) to pull items. get_next_item() can suspend
-//   for an arbitrary number of cycles waiting on the sequencer -- an event
-//   fully independent of reset -- leaving a window where disable fork could
-//   kill this process between the sequencer granting the item and
-//   item_in_flight being set, still triggering "called twice" on the next
-//   grant. try_next_item() never blocks, closing that window.
+//   Reset-driven abort of an in-flight transaction is handled the way it
+//   always should have been: via the existing "if (!vif.i_rst_n) return;"
+//   checks inside drive_ar_channel()/drive_r_channel(). Those checks run
+//   inside the SAME process that holds the item, so whichever path is
+//   taken, control always flows back to exactly one item_done() call --
+//   no external kill, no flag bookkeeping, no race.
+//
+//   A separate reset_monitor() thread only ever touches physical interface
+//   signals (never seq_item_port). It re-asserts idle values every clock
+//   cycle for as long as reset stays low (not just once on the negedge), so
+//   any transient signal race with main_drive_loop's own checkpoints
+//   self-corrects within one cycle instead of persisting.
 //
 // drive_r_channel exit conditions:
 //   Primary  : rlast asserted by DUT (correct AXI behavior)
@@ -30,10 +41,6 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // =========================================================================
     axi4_agent_cfg          cfg;
     virtual axi4_if.master  vif;
-
-    // Tracks whether get_next_item was called but item_done has not yet been
-    // called. Used by the reset handler to call item_done() before restarting.
-    bit item_in_flight;
 
     // =========================================================================
     // UVM
@@ -59,10 +66,15 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // Reset outputs
     // =========================================================================
     virtual task reset_rd_signals();
+        // Blocking assign directly on the net -- takes effect immediately,
+        // without waiting for the next posedge (avoids garbage data being
+        // sampled by the DUT in the very first reset cycle).
         vif.arvalid = 1'b0;
         vif.rready  = 1'b0;
         vif.araddr  = '0;
 
+        // Also drive the clocking block outputs so they don't overwrite the
+        // value just forced above on the next clock edge.
         vif.master_cb.arvalid <= 1'b0;
         vif.master_cb.rready  <= 1'b0;
         vif.master_cb.araddr  <= '0;
@@ -72,68 +84,53 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // Run Phase
     // =========================================================================
     virtual task run_phase(uvm_phase phase);
-        item_in_flight = 0;
+        fork
+            reset_monitor();
+            main_drive_loop();
+        join_none
+    endtask
 
+    // =========================================================================
+    // Reset monitor -- ONLY touches physical interface signals. Never calls
+    // anything on seq_item_port. Runs for the entire simulation, independent
+    // of and never interfering with main_drive_loop's ownership of the
+    // sequencer item-pull contract.
+    // =========================================================================
+    virtual task reset_monitor();
         forever begin
-            fork
-                begin : DRV
-                    main_drive_loop();
-                end
-                begin : RST_WAIT
-                    wait(vif.i_rst_n === 1'b0);
-                end
-            join_any
-            disable fork;
+            wait (vif.i_rst_n === 1'b0);
+            `uvm_info(get_type_name(), "Reset detected -- forcing RD signals idle", UVM_MEDIUM)
 
-            if (vif.i_rst_n === 1'b0) begin
-                `uvm_info(get_type_name(), "Reset detected -- main_drive_loop killed", UVM_MEDIUM)
+            // Keep re-asserting idle every cycle for as long as reset stays
+            // low. This bounds any transient race with main_drive_loop's own
+            // reset checkpoints to at most one cycle instead of letting it
+            // persist.
+            while (vif.i_rst_n === 1'b0) begin
                 reset_rd_signals();
-
-                // main_drive_loop may have been killed after get_next_item but
-                // before item_done. Call item_done here so the sequencer does
-                // not block the next get_next_item call with the "called twice"
-                // error.
-                if (item_in_flight) begin
-                    seq_item_port.item_done();
-                    item_in_flight = 0;
-                end
-
-                wait(vif.i_rst_n === 1'b1);
                 @(posedge vif.i_clk);
-                `uvm_info(get_type_name(), "Reset released -- RD driver ready", UVM_MEDIUM)
             end
+
+            `uvm_info(get_type_name(), "Reset released -- RD driver ready", UVM_MEDIUM)
         end
     endtask
 
     // =========================================================================
-    // Main drive loop — called from run_phase fork
+    // Main drive loop -- the ONLY place that touches seq_item_port. Runs for
+    // the entire duration of run_phase; never forked/killed/re-forked.
+    // get_next_item() is allowed to block indefinitely: that is completely
+    // safe, since there is nothing to clean up while no item has been
+    // granted yet. Once an item IS granted, drive_ar_channel/drive_r_channel
+    // handle reset internally and always return control here, guaranteeing
+    // item_done() is called exactly once per get_next_item().
     // =========================================================================
     virtual task main_drive_loop();
         axi4_rd_seq_item tr;
         forever begin
-            // FIX: try_next_item() (non-blocking) instead of get_next_item()
-            // (blocking). get_next_item() can suspend for an arbitrary number
-            // of cycles waiting for the sequencer to grant an item -- an
-            // event fully independent of reset. If disable fork (triggered
-            // by RST_WAIT) lands in the gap between the grant becoming
-            // visible on the sequencer side and this process reaching
-            // "item_in_flight = 1", the sequencer is left with an item it
-            // considers outstanding while item_in_flight still reads 0, so
-            // the reset-recovery item_done() fallback in run_phase never
-            // fires -- causing "get_next_item called twice" on the next
-            // grant. try_next_item() never blocks, so there is no multi-
-            // cycle window left for that race to land in.
-            tr = null;
-            while (tr == null) begin
-                seq_item_port.try_next_item(tr);
-                if (tr == null) @(posedge vif.i_clk);
-            end
-            item_in_flight = 1;
+            seq_item_port.get_next_item(tr);
 
             drive_ar_channel(tr);
             drive_r_channel(tr);
 
-            item_in_flight = 0;
             seq_item_port.item_done();
         end
     endtask
@@ -174,7 +171,7 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // Exit conditions:
     //   Normal : rlast asserted by DUT
     //   RTL bug: beat_cnt reaches expected_beats without rlast (RLAST_MISSING)
-    //   Reset  : main_drive_loop killed by disable fork in run_phase
+    //   Reset  : detected internally, returns cleanly back to main_drive_loop
     // =========================================================================
     virtual task drive_r_channel(axi4_rd_seq_item tr);
 
@@ -225,7 +222,7 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
             end while (!vif.master_cb.rvalid);
 
             // ------------------------------------------------------------------
-            // Handshake — capture beat
+            // Handshake -- capture beat
             // ------------------------------------------------------------------
             tr.rdata.push_back(vif.master_cb.rdata);
             tr.rresp = vif.master_cb.rresp;
