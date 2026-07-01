@@ -10,6 +10,14 @@
 //   main_drive_loop is killed mid-transaction — so the sequencer never gets
 //   stuck with an un-acknowledged item ("get_next_item called twice" error).
 //
+//   main_drive_loop uses try_next_item() (non-blocking) instead of
+//   get_next_item() (blocking) to pull items. get_next_item() can suspend
+//   for an arbitrary number of cycles waiting on the sequencer -- an event
+//   fully independent of reset -- leaving a window where disable fork could
+//   kill this process between the sequencer granting the item and
+//   item_in_flight being set, still triggering "called twice" on the next
+//   grant. try_next_item() never blocks, closing that window.
+//
 // drive_r_channel exit conditions:
 //   Primary  : rlast asserted by DUT (correct AXI behavior)
 //   Fallback : beat_cnt == expected_beats with no rlast (RTL bug, logged)
@@ -103,7 +111,23 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     virtual task main_drive_loop();
         axi4_rd_seq_item tr;
         forever begin
-            seq_item_port.get_next_item(tr);
+            // FIX: try_next_item() (non-blocking) instead of get_next_item()
+            // (blocking). get_next_item() can suspend for an arbitrary number
+            // of cycles waiting for the sequencer to grant an item -- an
+            // event fully independent of reset. If disable fork (triggered
+            // by RST_WAIT) lands in the gap between the grant becoming
+            // visible on the sequencer side and this process reaching
+            // "item_in_flight = 1", the sequencer is left with an item it
+            // considers outstanding while item_in_flight still reads 0, so
+            // the reset-recovery item_done() fallback in run_phase never
+            // fires -- causing "get_next_item called twice" on the next
+            // grant. try_next_item() never blocks, so there is no multi-
+            // cycle window left for that race to land in.
+            tr = null;
+            while (tr == null) begin
+                seq_item_port.try_next_item(tr);
+                if (tr == null) @(posedge vif.i_clk);
+            end
             item_in_flight = 1;
 
             drive_ar_channel(tr);
