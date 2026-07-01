@@ -108,7 +108,7 @@ class axi4_reset_during_burst_seq extends axi4_base_seq;
                         if (vseqr.vif.wvalid && vseqr.vif.wready) begin
                             beat_count_after_reset++;
                             `uvm_error(get_type_name(),
-                                $sformatf("FAIL: W beat xuất hiện trong lúc rst_n=0 (beat count=%0d)",
+                                $sformatf("FAIL: W beat detected while rst_n=0 (beat count=%0d)",
                                           beat_count_after_reset))
                         end
                     end
@@ -140,11 +140,11 @@ class axi4_reset_during_burst_seq extends axi4_base_seq;
         //-----------------------------------------------------------------
         if (beat_count_after_reset != 0)
             `uvm_error(get_type_name(),
-                $sformatf("FAIL: %0d beat(s) xuất hiện khi rst_n=0 (DUT không abort burst khi reset)",
+                $sformatf("FAIL: %0d beat(s) detected while rst_n=0 -- DUT did not abort burst on reset",
                           beat_count_after_reset))
         else
             `uvm_info(get_type_name(),
-                "PASS: khong co beat nao xuat hien reset active",
+                "PASS: No W beats detected during reset active",
                 UVM_LOW)
 
         //-----------------------------------------------------------------

@@ -85,12 +85,9 @@ class axi4_wr_monitor extends uvm_monitor;
             //------------------------------------------------------------------
             @(vif.slave_cb iff (vif.slave_cb.awvalid && vif.slave_cb.awready));
                 `uvm_info("MON_AW",
-                $sformatf(
-                "@%0t AW handshake awid=%0h awaddr=%0h",
-                $time,
-                vif.slave_cb.awid,
-                vif.slave_cb.awaddr),
-                UVM_NONE)
+                $sformatf("@%0t AW handshake awid=%0h awaddr=%0h",
+                    $time, vif.slave_cb.awid, vif.slave_cb.awaddr),
+                UVM_MEDIUM)
 
             // Handshake thanh cong, capture lại transaction: awaddr, awid, awlen, awburst
 
@@ -126,12 +123,9 @@ class axi4_wr_monitor extends uvm_monitor;
                 tr.wdata.push_back(vif.slave_cb.wdata);
 
                 `uvm_info("MON_W",
-                    $sformatf(
-                        "@%0t beat=%0d wlast=%0b",
-                        $time,
-                        tr.wdata.size()-1,
-                        vif.slave_cb.wlast),
-                    UVM_NONE)
+                    $sformatf("@%0t beat=%0d wlast=%0b",
+                        $time, tr.wdata.size()-1, vif.slave_cb.wlast),
+                    UVM_HIGH)
 
             end
 
@@ -140,20 +134,17 @@ class axi4_wr_monitor extends uvm_monitor;
             //------------------------------------------------------------------
               
 `uvm_info("MON_B_WAIT",
-    $sformatf("@%0t start waiting B", $time),
-    UVM_NONE)
+    $sformatf("@%0t waiting for B channel handshake", $time),
+    UVM_HIGH)
 
 do begin
     @(posedge vif.i_clk);
 end while (!(vif.slave_cb.bvalid && vif.slave_cb.bready));
                             `uvm_info("MON_B",
-            $sformatf(
-            "@%0t bvalid=%0b bready=%0b bid=%0h",
-            $time,
-            vif.slave_cb.bvalid,
-            vif.slave_cb.bready,
-            vif.slave_cb.bid),
-            UVM_NONE)
+            $sformatf("@%0t bvalid=%0b bready=%0b bid=%0h",
+                $time, vif.slave_cb.bvalid,
+                vif.slave_cb.bready, vif.slave_cb.bid),
+            UVM_HIGH)
 
             tr.bresp = vif.slave_cb.bresp; // capture response 
             tr.bid   = vif.slave_cb.bid;

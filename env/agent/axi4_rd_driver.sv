@@ -97,7 +97,7 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // Drive AR channel
     // =========================================================================
     virtual task drive_ar_channel(axi4_rd_seq_item tr);
-        `uvm_info("DBG_AR", $sformatf("ENTER drive_ar_channel ARADDR=0x%0h", tr.araddr), UVM_NONE)
+        `uvm_info("DBG_AR", $sformatf("ENTER drive_ar_channel ARADDR=0x%0h", tr.araddr), UVM_HIGH)
         vif.master_cb.araddr  <= tr.araddr;
         vif.master_cb.arid    <= tr.arid;
         vif.master_cb.arlen   <= tr.arlen;
@@ -138,7 +138,7 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
                     `uvm_info("RD_BP",
                         $sformatf("R  beat[%0d] STALL %0d cycles | bp_pct=%0d%% | ARADDR=0x%0h",
                             beat_cnt, bp_cycles, cfg.backpressure_pct, tr.araddr),
-                        UVM_LOW)
+                        UVM_HIGH)
                     vif.master_cb.rready <= 1'b0;
                     repeat (bp_cycles) @(posedge vif.i_clk);
                 end

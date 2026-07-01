@@ -169,7 +169,7 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // Drive AW Channel
     // =========================================================================
     virtual task drive_aw_channel(axi4_wr_seq_item tr);
-      `uvm_info("DBG_AW","ENTER drive_aw_channel", UVM_NONE)   // <-- thêm dòng này
+      `uvm_info("DBG_AW", "ENTER drive_aw_channel", UVM_HIGH)
 
         // Setup phase
         vif.master_cb.awaddr  <= tr.awaddr;
@@ -215,16 +215,10 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
     // =========================================================================
     virtual task drive_w_channel(axi4_wr_seq_item tr);
         `uvm_info("DRV_W",
-        $sformatf("wdata_size=%0d awlen=%0d",
-            tr.wdata.size(),
-            tr.awlen),
-        UVM_NONE)
-      `uvm_info("DRV_HANDLE",
-        $sformatf("cfg=%p bp=%0d max_cyc=%0d",
-            cfg,
-            cfg.backpressure_pct,
-            cfg.max_backpressure_cycles),
-        UVM_NONE)
+            $sformatf("wdata_size=%0d awlen=%0d bp_pct=%0d max_cyc=%0d",
+                tr.wdata.size(), tr.awlen,
+                cfg.backpressure_pct, cfg.max_backpressure_cycles),
+            UVM_HIGH)
 
 
 
@@ -251,7 +245,7 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
                         `uvm_info("WR_BP",
                             $sformatf("W beat[%0d] STALL %0d cycles | bp_pct=%0d%% | AWADDR=0x%0h",
                                 i, bp_cycles, cfg.backpressure_pct, tr.awaddr),
-                            UVM_LOW)
+                            UVM_HIGH)
                         vif.master_cb.wvalid <= 1'b0;
                         // Use loop so reset is checked on every stall cycle
                         for (int c = 0; c < int'(bp_cycles); c++) begin
@@ -341,13 +335,10 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
 
         end
                             `uvm_info("DRV_B",
-            $sformatf(
-            "@%0t bvalid=%0b bready=%0b bid=%0h",
-            $time,
-            vif.master_cb.bvalid,
-            vif.master_cb.bready,
-            vif.master_cb.bid),
-            UVM_NONE)
+            $sformatf("@%0t bvalid=%0b bready=%0b bid=%0h",
+                $time, vif.master_cb.bvalid,
+                vif.master_cb.bready, vif.master_cb.bid),
+            UVM_HIGH)
         tr.bresp = vif.master_cb.bresp;
         tr.bid   = vif.master_cb.bid;
 
