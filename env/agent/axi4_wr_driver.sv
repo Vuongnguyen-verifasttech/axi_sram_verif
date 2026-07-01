@@ -232,7 +232,14 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
 
             int unsigned bp_cycles;
 
-                  // Optional backpressure: Kiểm tra DUT có xử lý được data đến không liên tục hay không = cách tự tạo delay 
+            // Guard: abandon burst if reset is active at start of any beat
+            if (!vif.i_rst_n) begin
+                vif.master_cb.wvalid <= 1'b0;
+                vif.master_cb.wlast  <= 1'b0;
+                return;
+            end
+
+                  // Optional backpressure: Kiểm tra DUT có xử lý được data đến không liên tục hay không = cách tự tạo delay
             if (cfg.backpressure_pct > 0) begin
 
                 bp_cycles =
@@ -246,8 +253,23 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
                                 i, bp_cycles, cfg.backpressure_pct, tr.awaddr),
                             UVM_LOW)
                         vif.master_cb.wvalid <= 1'b0;
-                        repeat (bp_cycles) @(posedge vif.i_clk);
+                        // Use loop so reset is checked on every stall cycle
+                        for (int c = 0; c < int'(bp_cycles); c++) begin
+                            @(posedge vif.i_clk);
+                            if (!vif.i_rst_n) begin
+                                vif.master_cb.wvalid <= 1'b0;
+                                vif.master_cb.wlast  <= 1'b0;
+                                return;
+                            end
+                        end
                     end
+            end
+
+            // Guard: re-check reset after stall before asserting WVALID
+            if (!vif.i_rst_n) begin
+                vif.master_cb.wvalid <= 1'b0;
+                vif.master_cb.wlast  <= 1'b0;
+                return;
             end
 
             // Drive beat
@@ -257,6 +279,13 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
 
             // Wait handshake
         @(posedge vif.i_clk);
+
+        // Guard: check reset immediately after clock edge (covers WREADY=1 path)
+        if (!vif.i_rst_n) begin
+            vif.master_cb.wvalid <= 1'b0;
+            vif.master_cb.wlast  <= 1'b0;
+            return;
+        end
 
         while (!vif.master_cb.wready) begin
 
