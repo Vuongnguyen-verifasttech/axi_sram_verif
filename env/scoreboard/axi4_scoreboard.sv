@@ -175,6 +175,7 @@ class axi4_scoreboard extends uvm_scoreboard;
     virtual function void write_rd(axi4_rd_seq_item tr);
 
         logic [31:0] addr;
+        logic [31:0] dut_addr;
         logic [31:0] expected;
         logic [31:0] word_addr;
         string result_table;
@@ -223,16 +224,23 @@ class axi4_scoreboard extends uvm_scoreboard;
 
             result_table = {
             "\n===============================================================\n",
-            $sformatf("READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d\n",
-                      tr.arid, tr.araddr, tr.arlen),
+            $sformatf("READ CHECK : ARID=0x%0h ARADDR=0x%08h ARLEN=%0d ARBURST=%0b\n",
+                      tr.arid, tr.araddr, tr.arlen, tr.arburst),
             "===============================================================\n",
-            "Beat  Addr        Expected    Actual      Result\n",
-            "----  ----------  ----------  ----------  ------\n"
+            "Beat  SpecAddr    DutAddr     Expected    Actual      Result\n",
+            "----  ----------  ----------  ----------  ----------  ------\n"
             };
 
-            addr = tr.araddr;
+            // addr     = dia chi theo SPEC (co wrap dung chuan)  -> index shadow
+            // dut_addr = dia chi DUT THUC SU drive (mo hinh theo hanh vi DUT:
+            //            FIXED giu nguyen, INCR/WRAP tang deu -- WRAP la BUG vi
+            //            DUT dung (addr+4)&~3 = addr+4, khong quay ve boundary).
+            addr     = tr.araddr;
+            dut_addr = tr.araddr;
 
             foreach (tr.rdata[i]) begin
+
+                string diverge_flag;
 
                 word_addr = addr >> 2;
 
@@ -248,42 +256,41 @@ class axi4_scoreboard extends uvm_scoreboard;
                     rd_mismatch++;
                 end
 
+                // Danh dau beat ma SPEC da wrap nhung DUT khong -> lech dia chi
+                diverge_flag = (addr !== dut_addr) ? "  <== WRAP DIVERGE (DUT no-wrap)" : "";
+
                result_table = {result_table,
-$sformatf("%4d  0x%08h  0x%08h  0x%08h  %s\n",
+$sformatf("%4d  0x%08h  0x%08h  0x%08h  0x%08h  %s%s\n",
           i,
           addr,
+          dut_addr,
           expected,
           tr.rdata[i],
-          result_str)};
+          result_str,
+          diverge_flag)};
+
+                // --- advance SPEC addr (chuan) ---
                 case (tr.arburst)
-
-                    2'b00:
-                        addr = tr.araddr;
-
-                    2'b01:
-                        addr = addr + 4;
-
-                    2'b10: begin
+                    2'b00: addr = tr.araddr;            // FIXED
+                    2'b01: addr = addr + 4;             // INCR
+                    2'b10: begin                        // WRAP dung spec
                         logic [31:0] wrap_len;
                         logic [31:0] wrap_boundary;
-                        logic [31:0] addr_dut;
                         wrap_len      = (tr.arlen + 1) * 4;
                         wrap_boundary = (tr.araddr / wrap_len) * wrap_len;
-                        addr_dut      = (addr + 4) & ~(32'h3);  // logic DUT bug
                         addr          = addr + 4;
-                        if (addr >= wrap_boundary + wrap_len) begin
-                            // Wrap xảy ra tại beat này
-                            result_table = {result_table,
-                                $sformatf("  >> WRAP: expected_addr=0x%08h (wrap:0x%08h) | dut_addr=0x%08h (no wrap!)\n",
-                                          addr, wrap_boundary, addr_dut)};
-                            addr = wrap_boundary;
-                        end
+                        if (addr >= wrap_boundary + wrap_len)
+                            addr = wrap_boundary;       // quay ve boundary
                     end
-
-                    default:
-                        addr = addr + 4;
-
+                    default: addr = addr + 4;
                 endcase
+
+                // --- advance DUT addr (mo hinh hanh vi thuc te cua DUT) ---
+                // FIXED: giu nguyen; INCR & WRAP: tang deu (WRAP khong wrap = bug)
+                if (tr.arburst == 2'b00)
+                    dut_addr = tr.araddr;
+                else
+                    dut_addr = dut_addr + 4;
 
             end
 
