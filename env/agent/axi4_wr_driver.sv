@@ -146,6 +146,14 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
         forever begin
             seq_item_port.get_next_item(tr);
 
+            // KHONG bat dau transaction moi khi reset con active: neu drive
+            // ngay bay gio ta se assert AWVALID/WVALID trong luc i_rst_n=0, vi
+            // pham AXI reset spec (master phai giu VALID LOW khi reset). Cho
+            // reset nha ra roi moi drive. Block o day an toan: item da duoc
+            // grant, item_done() chi don gian bi hoan lai.
+            while (vif.i_rst_n === 1'b0)
+                @(posedge vif.i_clk);
+
             `uvm_info(get_type_name(),
                       $sformatf("Driving: %s",
                                 tr.convert2string()),

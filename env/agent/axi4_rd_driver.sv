@@ -128,6 +128,14 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
         forever begin
             seq_item_port.get_next_item(tr);
 
+            // KHONG bat dau transaction moi khi reset con active: neu drive
+            // ngay bay gio ta se assert ARVALID trong luc i_rst_n=0, vi pham
+            // AXI reset spec (master phai giu VALID LOW khi reset). Cho reset
+            // nha ra roi moi drive. Block o day an toan: item da duoc grant,
+            // item_done() chi don gian bi hoan lai.
+            while (vif.i_rst_n === 1'b0)
+                @(posedge vif.i_clk);
+
             drive_ar_channel(tr);
             drive_r_channel(tr);
 
