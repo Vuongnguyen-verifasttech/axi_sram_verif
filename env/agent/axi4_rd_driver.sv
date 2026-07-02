@@ -42,6 +42,12 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     axi4_agent_cfg          cfg;
     virtual axi4_if.master  vif;
 
+    // View slave CHI de sample R handshake (rvalid/rready/rlast/rdata) qua
+    // slave_cb -- input #1, giong het monitor. Drive rready van qua vif.master_cb.
+    // Ly do: dem beat theo master_cb (drive rready, output skew) lech thoi diem
+    // DUT pop -> phantom count. Sample qua slave_cb khop chinh xac transfer that.
+    virtual axi4_if.slave   vif_slave;
+
     // =========================================================================
     // UVM
     // =========================================================================
@@ -60,6 +66,8 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
             `uvm_fatal("RD_DRV_CFG", "Cannot get cfg from config_db")
         if (!uvm_config_db#(virtual axi4_if.master)::get(this, "", "vif", vif))
             `uvm_fatal("RD_DRV_VIF", "Cannot get vif from config_db")
+        if (!uvm_config_db#(virtual axi4_if.slave)::get(this, "", "vif_slave", vif_slave))
+            `uvm_fatal("RD_DRV_VIF", "Cannot get vif_slave from config_db")
     endfunction
 
     // =========================================================================
@@ -228,27 +236,25 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
             end
 
             // ------------------------------------------------------------------
-            // Transfer that iff rvalid && rready_wire. Dung "vif.rready" -- la
-            // NET THAT (gia tri da gom output skew #1 cua master_cb, dung cai
-            // ma DUT thuc su thay de pop R FIFO), KHONG dung vif.master_cb.rready
-            // (gia tri committed cua clocking block, lech 1 edge). Nho vay dieu
-            // kien dem khop CHINH XAC voi pop cua DUT, khong con phong doan skew
-            // -- giong cach monitor sample slave_cb.rready.
+            // Sample R handshake qua slave_cb (input #1) -- Y HET monitor. Dem
+            // beat CHINH XAC theo transfer that ma DUT pop, khong bi lech do
+            // output skew cua rready ta drive qua master_cb. (Truoc day dem theo
+            // master_cb/vif.rready -> phantom count -> RLAST sai + cascade.)
             // ------------------------------------------------------------------
-            if (vif.master_cb.rvalid && vif.rready) begin
+            if (vif_slave.slave_cb.rvalid && vif_slave.slave_cb.rready) begin
 
-                tr.rdata.push_back(vif.master_cb.rdata);
-                tr.rresp = vif.master_cb.rresp;
-                tr.rid   = vif.master_cb.rid;
+                tr.rdata.push_back(vif_slave.slave_cb.rdata);
+                tr.rresp = vif_slave.slave_cb.rresp;
+                tr.rid   = vif_slave.slave_cb.rid;
                 beat_cnt++;
 
                 `uvm_info(get_type_name(),
                           $sformatf("R beat[%0d]: RDATA=0x%0h RLAST=%0b RRESP=%0b",
-                                     beat_cnt-1, vif.master_cb.rdata,
-                                     vif.master_cb.rlast, vif.master_cb.rresp),
+                                     beat_cnt-1, vif_slave.slave_cb.rdata,
+                                     vif_slave.slave_cb.rlast, vif_slave.slave_cb.rresp),
                           UVM_HIGH)
 
-                if (vif.master_cb.rlast) begin
+                if (vif_slave.slave_cb.rlast) begin
                     if (beat_cnt != expected_beats)
                         `uvm_error(get_type_name(),
                             $sformatf("RLAST_EARLY: rlast at beat[%0d] but expected=%0d beats | ARADDR=0x%0h ARLEN=%0d",

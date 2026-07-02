@@ -165,6 +165,12 @@ module tb_top;
     uvm_config_db#(virtual axi4_if.slave)::set(
         null, "uvm_test_top.env.axi_agent.rd_monitor", "vif", axi_if);
 
+    // rd_driver dùng thêm view slave (slave_cb) CHỈ để sample R handshake y hệt
+    // monitor (rvalid/rready/rlast/rdata với input #1) -> dem dung transfer that
+    // ma DUT pop, khong bi lech do output skew cua rready drive qua master_cb.
+    uvm_config_db#(virtual axi4_if.slave)::set(
+        null, "uvm_test_top.env.axi_agent.rd_driver", "vif_slave", axi_if);
+
     run_test();
 end
 
