@@ -125,6 +125,7 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // =========================================================================
     virtual task main_drive_loop();
         axi4_rd_seq_item tr;
+        bit              ar_accepted;
         forever begin
             seq_item_port.get_next_item(tr);
 
@@ -136,8 +137,13 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
             while (vif.i_rst_n === 1'b0)
                 @(posedge vif.i_clk);
 
-            drive_ar_channel(tr);
-            drive_r_channel(tr);
+            drive_ar_channel(tr, ar_accepted);
+
+            // Chi cho R response khi AR that su duoc DUT nhan. Neu reset abort
+            // truoc AR handshake, khong co read nao ton tai -> khong drive_r
+            // (tranh cho rvalid cua read khong ton tai / dem sai beat).
+            if (ar_accepted)
+                drive_r_channel(tr);
 
             seq_item_port.item_done();
         end
@@ -146,8 +152,14 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // =========================================================================
     // Drive AR Channel
     // =========================================================================
-    virtual task drive_ar_channel(axi4_rd_seq_item tr);
+    // accepted = 1 chi khi AR handshake (ARVALID && ARREADY) that su hoan tat.
+    // Neu reset abort truoc handshake, accepted=0 -> caller phai BO drive_r,
+    // vi khong co read nao duoc DUT nhan -> khong duoc di cho R data cua mot
+    // read khong ton tai.
+    virtual task drive_ar_channel(axi4_rd_seq_item tr, output bit accepted);
         `uvm_info("DBG_AR", $sformatf("ENTER drive_ar_channel ARADDR=0x%0h", tr.araddr), UVM_HIGH)
+
+        accepted = 1'b0;
 
         vif.master_cb.araddr  <= tr.araddr;
         vif.master_cb.arid    <= tr.arid;
@@ -171,6 +183,7 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
         end
 
         vif.master_cb.arvalid <= 1'b0;
+        accepted = 1'b1;   // handshake AR thanh cong -> se co R response
     endtask
 
     // =========================================================================

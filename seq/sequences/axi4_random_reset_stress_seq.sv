@@ -44,6 +44,11 @@ class axi4_random_reset_stress_seq extends axi4_base_seq;
     bit          traffic_stop_req;
     bit          all_resets_done;
 
+    // Set boi traffic_thread khi no da break sach (transaction dang do da
+    // hoan tat). Main body cho co nay TRUOC khi disable fork, de khong giet
+    // traffic giua luc dang write -> tranh bo lai 1 AW trong FIFO cua DUT.
+    bit          traffic_done;
+
     event        e_all_resets_done;
 
     // =========================================================================
@@ -96,6 +101,9 @@ class axi4_random_reset_stress_seq extends axi4_base_seq;
                     rd_seq = axi4_single_rd_seq::type_id::create("rd_seq");
                     rd_seq.start(vseqr.rd_seqr);
                 end
+                // Da break sach: transaction cuoi (neu co) da chay xong tren
+                // bus, khong con write dang do -> bao cho main body.
+                traffic_done = 1;
             end
 
             // ------------------------------------------------------------------
@@ -178,8 +186,18 @@ class axi4_random_reset_stress_seq extends axi4_base_seq;
 
         join_none
 
-        // Wait for all resets to complete, then kill remaining threads
+        // Wait for all resets to complete.
         @e_all_resets_done;
+
+        // Cho traffic_thread break SACH (hoan tat transaction dang do) truoc
+        // khi disable fork. Neu disable fork ngay bay gio, ta co the giet
+        // traffic giua luc dang write -> AW da vao FIFO cua DUT nhung W chua
+        // gui xong -> AW FIFO khong bao gio duoc pop -> final idle check FAIL
+        // (AW FIFO not empty / AWREADY not HIGH). traffic_stop_req da duoc set,
+        // nen traffic_thread se break o vong lap ke tiep.
+        wait (traffic_done === 1'b1);
+
+        // Gio chi con check_thread song -> disable fork an toan.
         disable fork;
 
         // Let any in-flight transaction settle before final checks
@@ -230,37 +248,26 @@ class axi4_random_reset_stress_seq extends axi4_base_seq;
     endtask
 
     // =========================================================================
-    // Check B/R/FIFO only — called after each reset WHILE traffic is running.
-    // AW/AR ready are intentionally skipped: traffic may already have a new
-    // AW/AR request in flight by the time this runs.
+    // Diagnostic snapshot sau moi reset -- CHI LOG, khong uvm_error.
+    //
+    // Ham nay chay ~15 cycle SAU khi reset da nha (5 settle trong reset_seq +
+    // post_reset_settle), trong khi traffic_thread chay SONG SONG da co the
+    // phong write/read moi. Vi vay bvalid/rvalid/wfifo/bfifo o day co the dang
+    // ban vi transaction HOP LE sau reset -> so sanh == idle se false-positive
+    // (vd "RVALID not LOW after reset" du DUT hoan toan dung).
+    //
+    // Kiem tra spurious response DUNG THOI DIEM (trong luc i_rst_n=0) da duoc:
+    //   - check_thread (sample chi khi i_rst_n===0), va
+    //   - interface assertions p_bvalid/p_rvalid_low_during_reset
+    // dam nhiem. Kiem tra idle THUC SU nam o check_idle_state_full() sau khi
+    // traffic da dung han. Nen o day chi log de quan sat, khong fail.
     // =========================================================================
     virtual task check_idle_state_during_stress(int unsigned reset_idx);
 
         `uvm_info(get_type_name(),
-            $sformatf("[Reset %0d] Checking B/R/FIFO idle state (traffic still running)...",
-                      reset_idx),
-            UVM_MEDIUM)
-
-        if (vseqr.vif.bvalid !== 1'b0)
-            `uvm_error(get_type_name(),
-                $sformatf("[Reset %0d] FAIL: BVALID not LOW after reset (spurious B response)",
-                          reset_idx))
-
-        if (vseqr.vif.rvalid !== 1'b0)
-            `uvm_error(get_type_name(),
-                $sformatf("[Reset %0d] FAIL: RVALID not LOW after reset (spurious R response)",
-                          reset_idx))
-
-        if (vseqr.vif.wfifo_empty !== 1'b1)
-            `uvm_error(get_type_name(),
-                $sformatf("[Reset %0d] FAIL: W FIFO not empty after reset", reset_idx))
-
-        if (vseqr.vif.bfifo_empty !== 1'b1)
-            `uvm_error(get_type_name(),
-                $sformatf("[Reset %0d] FAIL: B FIFO not empty after reset", reset_idx))
-
-        `uvm_info(get_type_name(),
-            $sformatf("[Reset %0d] B/R/FIFO idle check OK", reset_idx),
+            $sformatf("[Reset %0d] Post-reset snapshot (traffic running): bvalid=%0b rvalid=%0b wfifo_empty=%0b bfifo_empty=%0b",
+                      reset_idx, vseqr.vif.bvalid, vseqr.vif.rvalid,
+                      vseqr.vif.wfifo_empty, vseqr.vif.bfifo_empty),
             UVM_MEDIUM)
 
     endtask
