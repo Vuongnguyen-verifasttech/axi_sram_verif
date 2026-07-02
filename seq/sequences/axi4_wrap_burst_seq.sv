@@ -59,11 +59,18 @@ class axi4_wrap_burst_seq extends axi4_base_seq;
             // ------------------------------------------------------------------
             wr_req = axi4_wr_seq_item::type_id::create("wr_req");
 
+            // Item mac dinh chi cho INCR (c_burst_type: awburst inside {2'b01}).
+            // Test nay can WRAP (2'b10) nen phai TAT c_burst_type, neu khong
+            // inline awburst==2'b10 mau thuan voi item -> randomize FAIL -> fatal.
+            wr_req.c_burst_type.constraint_mode(0);
+
             if (!wr_req.randomize() with {
                     awburst == 2'b10;                       // WRAP
                     awlen   == awlen_val;
-                    // align awaddr theo wrap size = beats * 4
-                    awaddr % (awlen_val + 1) * 4 == 0;
+                    // align awaddr theo wrap size = beats * 4. PHAI co ngoac:
+                    // "% (beats+1) * 4" bi parse thanh "(awaddr % beats) * 4"
+                    // do %,* cung do uu tien, ket hop trai -> align SAI.
+                    awaddr % (beats * 4) == 0;
                     wdata.size() == awlen + 1;
                 })
                 `uvm_fatal(get_type_name(), "WR Randomization failed")
@@ -85,6 +92,9 @@ class axi4_wrap_burst_seq extends axi4_base_seq;
             // Scoreboard tính expected theo WRAP spec → compare với DUT
             // ------------------------------------------------------------------
             rd_req = axi4_rd_seq_item::type_id::create("rd_req");
+
+            // Tuong tu: tat c_burst_type de cho phep WRAP (2'b10) o read.
+            rd_req.c_burst_type.constraint_mode(0);
 
             if (!rd_req.randomize() with {
                     arburst == 2'b10;
