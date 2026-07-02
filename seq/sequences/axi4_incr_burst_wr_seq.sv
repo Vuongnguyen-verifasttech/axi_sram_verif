@@ -35,11 +35,19 @@ class axi4_incr_burst_wr_seq extends axi4_base_seq;
 
             req = axi4_wr_seq_item::type_id::create("req");
 
+            // Item mac dinh cap awlen [0:15] (c_len_range, cho sim nhanh). Test
+            // nay chu dich phu FULL INCR range 2..256 beats nen tat cap do.
+            // (awaddr align + wdata.size == awlen+1 van do item rang buoc san.)
+            req.c_len_range.constraint_mode(0);
+
             if (!req.randomize() with {
-                    awburst == 2'b01;                   // INCR
-                    awlen   inside {[1:255]};            // 2..256 beats
-                    awaddr  % 4 == 0;                    // align 4 bytes
-                    wdata.size() == awlen + 1;           // đúng số beat
+                    awburst == 2'b01;                        // INCR
+                    awlen   inside {[1:255]};                 // 2..256 beats
+                    // Giu TOAN BO burst trong SRAM 4KB. Item chi rang buoc dia
+                    // chi BAT DAU (c_addr_range [0:0xFFF]); voi burst dai, dia
+                    // chi cuoi (awaddr + (awlen+1)*4) co the vuot range -> ghi
+                    // ngoai vung / alias. Rang buoc end-addr o day chan viec do.
+                    awaddr + (awlen + 1) * 4 <= 32'h0000_1000;
                 })
                 `uvm_fatal(get_type_name(), "Randomization failed")
 
