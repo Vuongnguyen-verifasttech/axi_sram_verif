@@ -30,6 +30,11 @@ class axi4_fixed_burst_seq extends axi4_base_seq;
             // ------------------------------------------------------------------
             wr_req = axi4_wr_seq_item::type_id::create("wr_req");
 
+            // Item mac dinh chi cho INCR (c_burst_type: awburst inside {2'b01}).
+            // Test nay can FIXED (2'b00) nen phai TAT c_burst_type, neu khong
+            // inline awburst==2'b00 mau thuan voi item -> randomize FAIL -> fatal.
+            wr_req.c_burst_type.constraint_mode(0);
+
             if (!wr_req.randomize() with {
                     awburst == 2'b00;
                     awlen   inside {[1:15]};
@@ -51,6 +56,9 @@ class axi4_fixed_burst_seq extends axi4_base_seq;
             // Read — cùng địa chỉ, cùng số beat
             // ------------------------------------------------------------------
             rd_req = axi4_rd_seq_item::type_id::create("rd_req");
+
+            // Tuong tu: tat c_burst_type de cho phep FIXED (2'b00) o read.
+            rd_req.c_burst_type.constraint_mode(0);
 
             if (!rd_req.randomize() with {
                     arburst == 2'b00;
