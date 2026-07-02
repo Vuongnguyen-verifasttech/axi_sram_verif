@@ -67,10 +67,13 @@ class axi4_wrap_burst_seq extends axi4_base_seq;
             if (!wr_req.randomize() with {
                     awburst == 2'b10;                       // WRAP
                     awlen   == awlen_val;
-                    // align awaddr theo wrap size = beats * 4. PHAI co ngoac:
-                    // "% (beats+1) * 4" bi parse thanh "(awaddr % beats) * 4"
-                    // do %,* cung do uu tien, ket hop trai -> align SAI.
-                    awaddr % (beats * 4) == 0;
+                    // awaddr align 4 byte (transfer size) da co san o item
+                    // (c_addr_align). O DAY ep awaddr KHONG nam o wrap_boundary
+                    // (tuc awaddr % (beats*4) != 0) de burst BAT DAU giua vung
+                    // -> chac chan co WRAP giua burst -> lo duoc bug DUT (DUT
+                    // khong wrap). Neu awaddr == boundary thi 16 beat lap dung
+                    // vung, KHONG wrap -> khong lo bug (day la loi fix truoc).
+                    awaddr % (beats * 4) != 0;
                     wdata.size() == awlen + 1;
                 })
                 `uvm_fatal(get_type_name(), "WR Randomization failed")
