@@ -280,21 +280,20 @@ interface axi4_if #(
     // synthesis translate_on
 
     // =========================================================================
-    // RLAST Checker  (RTL bug hand-off)
+    // RLAST Protocol Checker
     //
     // Yeu cau AXI: moi read burst phai co RLAST asserted DUNG o beat thu
     // (ARLEN+1), khong som khong tre.
     //
-    // Bug quan sat (giao RTL): sau khi mot reset chen vao GIUA mot read dang
-    // chay, read ke tiep tra ve du (ARLEN+1) beat nhung RLAST khong bao gio
-    // len -> "RLAST_MISSING". Nghi ngo o read datapath m_vlsi_sram_misc.sv
-    // (pipeline reg_rd_pending / reg_rd_last_d) va/hoac sinh o_last cua
-    // m_vlsi_axfsm.sv khong phuc hoi dung sau reset giua burst.
-    //
-    // Checker nay DOC LAP voi driver (driver co check rieng trong
-    // drive_r_channel), dat o interface de lam artifact giao RTL. Dung queue
-    // de ho tro AR duoc chap nhan truoc khi R cua read truoc drain xong
+    // Checker nay sample BUS THAT (rvalid && rready cua transfer thuc) nen
+    // phan anh dung hanh vi DUT, doc lap voi cach driver dem beat. No dung
+    // queue de ho tro AR duoc chap nhan truoc khi R cua read truoc drain xong
     // (pipelined). Reset xoa sach state -> khong desync qua reset.
+    //
+    // Ghi chu: RLAST_MISSING tung bao trong drive_r_channel (rd_driver) da
+    // duoc xac dinh la loi SAMPLE cua driver (deassert rready + clocking skew
+    // khi backpressure), KHONG phai loi DUT -- vi checker bus-that nay va
+    // monitor deu thay rlast dung. Giu checker nhu mot protocol assert doc lap.
     // =========================================================================
     // synthesis translate_off
     int chk_rd_expected_q[$];   // (ARLEN+1) cua tung read con outstanding
