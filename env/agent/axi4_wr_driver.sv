@@ -215,6 +215,22 @@ class axi4_wr_driver extends uvm_driver #(axi4_wr_seq_item);
         // Wait handshake : Moi clk kiem tra awready, neu awready = 0 --> tiep tuc cho, =1 --> handshake thanh cong
           @(posedge vif.i_clk);
 
+            // Guard: check reset immediately after clock edge. Neu reset assert
+            // dung o edge nay va AWREADY tinh co =1 (spec cho phep READY bat ky
+            // gia tri khi reset), khong co guard nay driver se tuong nham la
+            // handshake AW thanh cong. Bat reset o day de return sach, dong bo
+            // voi drive_w_channel()/drive_ar_channel().
+            if (!vif.i_rst_n) begin
+
+                `uvm_warning("AW_RST",
+                            "Reset detected while waiting AWREADY")
+
+                vif.master_cb.awvalid <= 1'b0;
+                vif.master_cb.awaddr  <= '0;
+
+                return;
+            end
+
             while (!vif.master_cb.awready) begin
 
                 if (!vif.i_rst_n) begin

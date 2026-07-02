@@ -178,14 +178,50 @@ interface axi4_if #(
     // WLAST phải match awlen (beat count)
     // (checked in scoreboard — không thể check di interface vì không biết awlen ở đây)
 
-     // ARREADY phải = 0 khi i_rst_n = 0
-    property p_arready_low_during_reset;
-        @(posedge i_clk)
-        (!i_rst_n) |-> (!arready);
+ */
+
+    // =========================================================================
+    // Reset behaviour checks -- theo AMBA AXI spec, khi i_rst_n=0:
+    //   - Master PHAI drive AWVALID/WVALID/ARVALID = LOW
+    //   - Slave  PHAI drive BVALID/RVALID          = LOW
+    //   - READY (AWREADY/WREADY/ARREADY) co the la BAT KY gia tri -> KHONG check.
+    //
+    // Vay AWREADY=1 trong luc reset KHONG phai bug. Van de "AWVALID=1 khi reset"
+    // la vi pham spec ve phia MASTER (driver testbench), va cac assertion duoi
+    // day bat dung loi do -- day la self-check cho driver, khong phai giao RTL.
+    // =========================================================================
+
+    // --- Master VALID phai LOW khi reset (loi driver testbench) ---
+    property p_awvalid_low_during_reset;
+        @(posedge i_clk) (!i_rst_n) |-> (!awvalid);
     endproperty
-    assert property (p_arready_low_during_reset)
-        else `uvm_error("AXI4_IF", "BUG: ARREADY=1 trong luc i_rst_n=0 : slave khong duoc accept AR request khi reset active")
-*/
+    assert property (p_awvalid_low_during_reset)
+        else `uvm_error("AXI4_IF", "SPEC VIOLATION: AWVALID=1 trong luc i_rst_n=0 : master phai drive AWVALID LOW khi reset")
+
+    property p_wvalid_low_during_reset;
+        @(posedge i_clk) (!i_rst_n) |-> (!wvalid);
+    endproperty
+    assert property (p_wvalid_low_during_reset)
+        else `uvm_error("AXI4_IF", "SPEC VIOLATION: WVALID=1 trong luc i_rst_n=0 : master phai drive WVALID LOW khi reset")
+
+    property p_arvalid_low_during_reset;
+        @(posedge i_clk) (!i_rst_n) |-> (!arvalid);
+    endproperty
+    assert property (p_arvalid_low_during_reset)
+        else `uvm_error("AXI4_IF", "SPEC VIOLATION: ARVALID=1 trong luc i_rst_n=0 : master phai drive ARVALID LOW khi reset")
+
+    // --- Slave VALID phai LOW khi reset (loi RTL DUT) ---
+    property p_bvalid_low_during_reset;
+        @(posedge i_clk) (!i_rst_n) |-> (!bvalid);
+    endproperty
+    assert property (p_bvalid_low_during_reset)
+        else `uvm_error("AXI4_IF", "SPEC VIOLATION: BVALID=1 trong luc i_rst_n=0 : slave phai drive BVALID LOW khi reset")
+
+    property p_rvalid_low_during_reset;
+        @(posedge i_clk) (!i_rst_n) |-> (!rvalid);
+    endproperty
+    assert property (p_rvalid_low_during_reset)
+        else `uvm_error("AXI4_IF", "SPEC VIOLATION: RVALID=1 trong luc i_rst_n=0 : slave phai drive RVALID LOW khi reset")
 
     // =========================================================================
     // WRAP Address Checker
