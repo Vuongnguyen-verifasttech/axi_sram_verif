@@ -189,13 +189,16 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
     // =========================================================================
     // Drive R Channel
     //
-    // Beat chi duoc dem khi co HANDSHAKE THAT: rvalid && rready cung cao tai
-    // dung edge DUT pop R FIFO (giong cach monitor sample). Truoc day driver
-    // dem beat chi theo rvalid va deassert rready TRUOC moi beat; ket hop voi
-    // output skew (#1) cua clocking block, viec bat/tat rready lien tuc lam
-    // so beat driver dem LECH so voi transfer thuc -> bo lo beat co rlast ->
-    // bao RLAST_MISSING oan (du DUT dua rlast dung). Fix: assert rready mot
-    // lan va GIU, backpressure deassert SAU beat (khong mat beat o bien stall).
+    // Dem beat theo DUNG dieu kien DUT pop R FIFO: pop tai edge iff
+    // (rvalid && rready_wire). Do output skew (#1) cua clocking block, rready
+    // ma DUT thuc su thay tai edge E = gia tri driver LENH o edge E-1. Ta track
+    // rr_eff (rready hieu luc, tre 1 edge so voi rr_cmd) va chi dem beat khi
+    // (rvalid && rr_eff) -> khop CHINH XAC tung transfer that.
+    //
+    // Truoc day driver dem beat chi theo rvalid va bat/tat rready lien tuc;
+    // deassert bi tre 1 edge (skew) nen DUT pop them 1 beat o bien stall ma
+    // driver KHONG capture -> mat beat -> lech dem -> RLAST_EARLY / RLAST_MISSING
+    // / cascade sang read sau -> hang. Model rr_eff xu ly triet de goc nay.
     //
     // Exit conditions:
     //   Normal : rlast asserted by DUT
@@ -206,13 +209,18 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
 
         int unsigned expected_beats;
         int unsigned beat_cnt;
-        int unsigned bp_cycles;
+        int unsigned stall_left;   // so cycle rready con phai keo thap (backpressure)
+        bit          rr_cmd;       // rready ta LENH o iteration nay
+        bit          rr_eff;       // rready DUT thuc su thay tai edge nay (tre 1 edge)
 
         expected_beats = tr.arlen + 1;
         beat_cnt       = 0;
+        stall_left     = 0;
+        rr_cmd         = 1'b1;
+        rr_eff         = 1'b0;     // an toan: coi rready chua hieu luc o edge dau
+                                   // (rvalid=0 do read latency nen khong lo beat)
         tr.rdata.delete();
 
-        // Assert rready mot lan, giu cao xuyen suot (tru khi co backpressure).
         vif.master_cb.rready <= 1'b1;
 
         forever begin
@@ -224,66 +232,63 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
                 return;
             end
 
-            // Chi dem khi co transfer that: rvalid && rready cung cao.
-            if (!(vif.master_cb.rvalid && vif.master_cb.rready))
-                continue;
+            // ------------------------------------------------------------------
+            // Transfer that iff rvalid && rr_eff (= rready DUT thay tai edge nay)
+            // ------------------------------------------------------------------
+            if (vif.master_cb.rvalid && rr_eff) begin
 
-            // ------------------------------------------------------------------
-            // Handshake -- capture beat
-            // ------------------------------------------------------------------
-            tr.rdata.push_back(vif.master_cb.rdata);
-            tr.rresp = vif.master_cb.rresp;
-            tr.rid   = vif.master_cb.rid;
-            beat_cnt++;
+                tr.rdata.push_back(vif.master_cb.rdata);
+                tr.rresp = vif.master_cb.rresp;
+                tr.rid   = vif.master_cb.rid;
+                beat_cnt++;
 
-            `uvm_info(get_type_name(),
-                      $sformatf("R beat[%0d]: RDATA=0x%0h RLAST=%0b RRESP=%0b",
-                                 beat_cnt-1, vif.master_cb.rdata,
-                                 vif.master_cb.rlast, vif.master_cb.rresp),
-                      UVM_HIGH)
+                `uvm_info(get_type_name(),
+                          $sformatf("R beat[%0d]: RDATA=0x%0h RLAST=%0b RRESP=%0b",
+                                     beat_cnt-1, vif.master_cb.rdata,
+                                     vif.master_cb.rlast, vif.master_cb.rresp),
+                          UVM_HIGH)
 
-            // ------------------------------------------------------------------
-            // Check rlast
-            // ------------------------------------------------------------------
-            if (vif.master_cb.rlast) begin
-                if (beat_cnt != expected_beats)
+                if (vif.master_cb.rlast) begin
+                    if (beat_cnt != expected_beats)
+                        `uvm_error(get_type_name(),
+                            $sformatf("** RTL BUG ** RLAST_EARLY: rlast at beat[%0d] but expected=%0d beats | ARADDR=0x%0h ARLEN=%0d",
+                                beat_cnt-1, expected_beats, tr.araddr, tr.arlen))
+                    break;
+                end
+
+                if (beat_cnt == expected_beats) begin
                     `uvm_error(get_type_name(),
-                        $sformatf("** RTL BUG ** RLAST_EARLY: rlast at beat[%0d] but expected=%0d beats | ARADDR=0x%0h ARLEN=%0d",
-                            beat_cnt-1, expected_beats, tr.araddr, tr.arlen))
-                break;
-            end
+                        $sformatf("** RTL BUG ** RLAST_MISSING: received %0d beats but rlast not asserted | ARADDR=0x%0h ARLEN=%0d",
+                            expected_beats, tr.araddr, tr.arlen))
+                    break;
+                end
 
-            if (beat_cnt == expected_beats) begin
-                `uvm_error(get_type_name(),
-                    $sformatf("** RTL BUG ** RLAST_MISSING: received %0d beats but rlast not asserted | ARADDR=0x%0h ARLEN=%0d",
-                        expected_beats, tr.araddr, tr.arlen))
-                break;
-            end
-
-            // ------------------------------------------------------------------
-            // Backpressure: deassert rready SAU beat vua nhan, stall N cycle,
-            // roi re-assert. Deassert co hieu luc o edge ke -> khong pop mat
-            // beat -> khong lech dem.
-            // ------------------------------------------------------------------
-            if (cfg.backpressure_pct > 0) begin
-                bp_cycles = ($urandom_range(0, 99) < cfg.backpressure_pct) ?
-                            $urandom_range(1, cfg.max_backpressure_cycles) : 0;
-                if (bp_cycles > 0) begin
-                    `uvm_info("RD_BP",
-                        $sformatf("R beat[%0d] STALL %0d cycles | bp_pct=%0d%% | ARADDR=0x%0h",
-                            beat_cnt, bp_cycles, cfg.backpressure_pct, tr.araddr),
-                        UVM_HIGH)
-                    vif.master_cb.rready <= 1'b0;
-                    for (int c = 0; c < int'(bp_cycles); c++) begin
-                        @(posedge vif.i_clk);
-                        if (!vif.i_rst_n) begin
-                            vif.master_cb.rready <= 1'b0;
-                            return;
-                        end
-                    end
-                    vif.master_cb.rready <= 1'b1;
+                // Quyet dinh backpressure cho beat KE TIEP.
+                if (cfg.backpressure_pct > 0) begin
+                    stall_left = ($urandom_range(0, 99) < cfg.backpressure_pct) ?
+                                 $urandom_range(1, cfg.max_backpressure_cycles) : 0;
+                    if (stall_left > 0)
+                        `uvm_info("RD_BP",
+                            $sformatf("R beat[%0d] STALL %0d cycles | bp_pct=%0d%% | ARADDR=0x%0h",
+                                beat_cnt, stall_left, cfg.backpressure_pct, tr.araddr),
+                            UVM_HIGH)
                 end
             end
+
+            // ------------------------------------------------------------------
+            // Cap nhat lenh rready: thap trong khi stall, con lai giu cao.
+            // rr_eff = rr_cmd -> co hieu luc o edge KE (mo hinh output skew #1).
+            // ------------------------------------------------------------------
+            if (stall_left > 0) begin
+                rr_cmd = 1'b0;
+                stall_left--;
+            end
+            else begin
+                rr_cmd = 1'b1;
+            end
+
+            rr_eff = rr_cmd;
+            vif.master_cb.rready <= rr_cmd;
 
         end // forever
 
