@@ -45,6 +45,12 @@ class axi4_incr_burst_rd_seq extends axi4_base_seq;
                     awlen   inside {[1:15]};   // giới hạn 16 beats để test nhanh
                     awaddr  % 4 == 0;
                     wdata.size() == awlen + 1;
+                    // Giu TOAN BO burst trong SRAM 4KB. SRAM index bang
+                    // addr[11:2] nen dia chi vuot 0xFFF se ALIAS vong ve vung
+                    // thap -> burst wrap, ghi de, integrity check phu thuoc
+                    // aliasing. Read thua huong range nay qua araddr==awaddr,
+                    // arlen==awlen.
+                    awaddr + (awlen + 1) * 4 <= 32'h0000_1000;
                 })
                 `uvm_fatal(get_type_name(), "WR Randomization failed")
 
