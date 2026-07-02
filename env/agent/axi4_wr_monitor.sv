@@ -75,6 +75,32 @@ class axi4_wr_monitor extends uvm_monitor;
 
         forever begin
 
+            // Chi monitor khi khong con trong reset.
+            wait (vif.i_rst_n === 1'b1);
+
+            fork : monitor_flow
+                capture_loop();
+            join_none
+
+            // Cho den khi reset assert -> kill flow dang do.
+            @(negedge vif.i_rst_n);
+
+            // Reset abort transaction dang do (vd da capture AW, dang cho W
+            // beats). Neu KHONG kill, monitor ket trong vong thu beat / cho B
+            // cua transaction da bi DUT bo -> desync voi cac transaction sau.
+            // disable fork o day an toan: monitor khong so huu seq_item_port.
+            disable monitor_flow;
+
+        end
+    endtask
+
+    //----------------------------------------------------------------------
+    // Capture loop -- AW -> W beats -> B, chay cho den khi bi reset kill.
+    //----------------------------------------------------------------------
+    virtual task capture_loop();
+
+        forever begin
+
             axi4_wr_seq_item tr;
             int unsigned num_beats;
 

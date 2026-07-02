@@ -102,11 +102,30 @@ class axi4_rd_monitor extends uvm_monitor;
     //==========================================================================
     virtual task run_phase(uvm_phase phase);
 //Vì AR và R là hai channel độc lập của AXI nên monitor cũng phải có hai thread độc lập.
-        fork
-            ar_thread(); //Capture Read Request.
-            r_thread();
-        join_none
+        forever begin
 
+            // Chi monitor khi khong con trong reset.
+            wait (vif.i_rst_n === 1'b1);
+
+            fork : monitor_threads
+                ar_thread(); //Capture Read Request.
+                r_thread();
+            join_none
+
+            // Cho den khi reset assert.
+            @(negedge vif.i_rst_n);
+
+            // Reset abort transaction dang do: kill 2 thread va flush mailbox
+            // ghep cap AR<->R. Neu KHONG flush, AR da capture (vd ARID=0x3)
+            // van nam trong mailbox trong khi DUT da bo read do -> R response
+            // cua transaction sau bi ghep nham voi AR cu -> RID mismatch lech
+            // 1 keo dai mai mai. Recreate mailbox de monitor re-sync sach sau
+            // reset. disable fork o day an toan: monitor khong so huu
+            // seq_item_port nhu driver.
+            disable monitor_threads;
+            mbx_ar = new();
+
+        end
     endtask
 
     //==========================================================================
