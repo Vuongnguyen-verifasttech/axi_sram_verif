@@ -279,4 +279,67 @@ interface axi4_if #(
     end
     // synthesis translate_on
 
+    // =========================================================================
+    // RLAST Checker  (RTL bug hand-off)
+    //
+    // Yeu cau AXI: moi read burst phai co RLAST asserted DUNG o beat thu
+    // (ARLEN+1), khong som khong tre.
+    //
+    // Bug quan sat (giao RTL): sau khi mot reset chen vao GIUA mot read dang
+    // chay, read ke tiep tra ve du (ARLEN+1) beat nhung RLAST khong bao gio
+    // len -> "RLAST_MISSING". Nghi ngo o read datapath m_vlsi_sram_misc.sv
+    // (pipeline reg_rd_pending / reg_rd_last_d) va/hoac sinh o_last cua
+    // m_vlsi_axfsm.sv khong phuc hoi dung sau reset giua burst.
+    //
+    // Checker nay DOC LAP voi driver (driver co check rieng trong
+    // drive_r_channel), dat o interface de lam artifact giao RTL. Dung queue
+    // de ho tro AR duoc chap nhan truoc khi R cua read truoc drain xong
+    // (pipelined). Reset xoa sach state -> khong desync qua reset.
+    // =========================================================================
+    // synthesis translate_off
+    int chk_rd_expected_q[$];   // (ARLEN+1) cua tung read con outstanding
+    int chk_rd_beat;            // so beat da nhan cua read o dau hang doi
+
+    always @(posedge i_clk or negedge i_rst_n) begin
+        if (!i_rst_n) begin
+            chk_rd_expected_q.delete();
+            chk_rd_beat = 0;
+        end else begin
+
+            // AR handshake -> enqueue so beat mong doi cua read nay.
+            if (arvalid && arready)
+                chk_rd_expected_q.push_back(int'(arlen) + 1);
+
+            // R beat transfer.
+            if (rvalid && rready) begin
+                if (chk_rd_expected_q.size() == 0) begin
+                    `uvm_error("AXI4_IF_RLAST",
+                        "RTL BUG: R beat (RVALID&&RREADY) nhung khong co AR outstanding")
+                end
+                else begin
+                    chk_rd_beat = chk_rd_beat + 1;
+
+                    if (rlast) begin
+                        if (chk_rd_beat != chk_rd_expected_q[0])
+                            `uvm_error("AXI4_IF_RLAST",
+                                $sformatf("RTL BUG: RLAST o beat %0d nhung mong doi %0d (=ARLEN+1)",
+                                          chk_rd_beat, chk_rd_expected_q[0]))
+                        void'(chk_rd_expected_q.pop_front());
+                        chk_rd_beat = 0;
+                    end
+                    else if (chk_rd_beat == chk_rd_expected_q[0]) begin
+                        `uvm_error("AXI4_IF_RLAST",
+                            $sformatf("RTL BUG: RLAST_MISSING -- nhan du %0d beat (=ARLEN+1) nhung RLAST khong asserted",
+                                      chk_rd_beat))
+                        // Phuc hoi de khong lech cac read sau.
+                        void'(chk_rd_expected_q.pop_front());
+                        chk_rd_beat = 0;
+                    end
+                end
+            end
+
+        end
+    end
+    // synthesis translate_on
+
 endinterface : axi4_if
