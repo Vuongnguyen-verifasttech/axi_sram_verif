@@ -210,15 +210,10 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
         int unsigned expected_beats;
         int unsigned beat_cnt;
         int unsigned stall_left;   // so cycle rready con phai keo thap (backpressure)
-        bit          rr_cmd;       // rready ta LENH o iteration nay
-        bit          rr_eff;       // rready DUT thuc su thay tai edge nay (tre 1 edge)
 
         expected_beats = tr.arlen + 1;
         beat_cnt       = 0;
         stall_left     = 0;
-        rr_cmd         = 1'b1;
-        rr_eff         = 1'b0;     // an toan: coi rready chua hieu luc o edge dau
-                                   // (rvalid=0 do read latency nen khong lo beat)
         tr.rdata.delete();
 
         vif.master_cb.rready <= 1'b1;
@@ -233,9 +228,14 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
             end
 
             // ------------------------------------------------------------------
-            // Transfer that iff rvalid && rr_eff (= rready DUT thay tai edge nay)
+            // Transfer that iff rvalid && rready_wire. Dung "vif.rready" -- la
+            // NET THAT (gia tri da gom output skew #1 cua master_cb, dung cai
+            // ma DUT thuc su thay de pop R FIFO), KHONG dung vif.master_cb.rready
+            // (gia tri committed cua clocking block, lech 1 edge). Nho vay dieu
+            // kien dem khop CHINH XAC voi pop cua DUT, khong con phong doan skew
+            // -- giong cach monitor sample slave_cb.rready.
             // ------------------------------------------------------------------
-            if (vif.master_cb.rvalid && rr_eff) begin
+            if (vif.master_cb.rvalid && vif.rready) begin
 
                 tr.rdata.push_back(vif.master_cb.rdata);
                 tr.rresp = vif.master_cb.rresp;
@@ -251,14 +251,14 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
                 if (vif.master_cb.rlast) begin
                     if (beat_cnt != expected_beats)
                         `uvm_error(get_type_name(),
-                            $sformatf("** RTL BUG ** RLAST_EARLY: rlast at beat[%0d] but expected=%0d beats | ARADDR=0x%0h ARLEN=%0d",
+                            $sformatf("RLAST_EARLY: rlast at beat[%0d] but expected=%0d beats | ARADDR=0x%0h ARLEN=%0d",
                                 beat_cnt-1, expected_beats, tr.araddr, tr.arlen))
                     break;
                 end
 
                 if (beat_cnt == expected_beats) begin
                     `uvm_error(get_type_name(),
-                        $sformatf("** RTL BUG ** RLAST_MISSING: received %0d beats but rlast not asserted | ARADDR=0x%0h ARLEN=%0d",
+                        $sformatf("RLAST_MISSING: received %0d beats but rlast not asserted | ARADDR=0x%0h ARLEN=%0d",
                             expected_beats, tr.araddr, tr.arlen))
                     break;
                 end
@@ -276,19 +276,15 @@ class axi4_rd_driver extends uvm_driver #(axi4_rd_seq_item);
             end
 
             // ------------------------------------------------------------------
-            // Cap nhat lenh rready: thap trong khi stall, con lai giu cao.
-            // rr_eff = rr_cmd -> co hieu luc o edge KE (mo hinh output skew #1).
+            // Cap nhat rready: thap trong khi con stall, con lai giu cao.
             // ------------------------------------------------------------------
             if (stall_left > 0) begin
-                rr_cmd = 1'b0;
+                vif.master_cb.rready <= 1'b0;
                 stall_left--;
             end
             else begin
-                rr_cmd = 1'b1;
+                vif.master_cb.rready <= 1'b1;
             end
-
-            rr_eff = rr_cmd;
-            vif.master_cb.rready <= rr_cmd;
 
         end // forever
 
